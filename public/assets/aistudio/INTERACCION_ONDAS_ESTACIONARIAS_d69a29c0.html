@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ondas Estacionarias en una Cuerda</title>
+  <style>
+    :root {
+      --bg: #0b1118;
+      --card: #132230;
+      --board: #113628;
+      --gold: #f5b041;
+      --blue: #54a0ff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: var(--bg);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    header {
+      padding: 10px 20px;
+      background: #080d13;
+      border-bottom: 2px solid #1a2f42;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 68% 32%;
+      gap: 12px;
+      padding: 12px;
+      min-height: 0;
+    }
+    .panel-sim {
+      background: var(--card);
+      border-radius: 12px;
+      border: 1px solid #1b354d;
+      position: relative;
+    }
+    canvas { width: 100%; height: 100%; display: block; }
+    .panel-board {
+      background: var(--board);
+      border: 8px solid #503423;
+      border-radius: 12px;
+      padding: 16px;
+      overflow-y: auto;
+    }
+    .board-h { color: var(--gold); border-bottom: 1px dashed rgba(255,255,255,0.3); padding-bottom: 6px; margin-bottom: 10px; }
+    .board-txt { font-size: 0.9rem; line-height: 1.45; margin-bottom: 10px; }
+    .controls {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(8, 13, 19, 0.9);
+      padding: 10px 18px;
+      border-radius: 25px;
+      border: 1px solid #234566;
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      padding: 6px 14px;
+      border: 1px solid var(--gold);
+      background: transparent;
+      color: var(--gold);
+      border-radius: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button.active { background: var(--gold); color: #000; }
+  </style>
+</head>
+<body>
+  <header>
+    <h2 style="font-size: 1.15rem; color: var(--gold);">Cómo «atrapar» una onda: Modos Armónicos</h2>
+    <span style="font-size: 0.85rem; color: #8fa0b0;">Extremos Fijos (Cuerda de Guitarra)</span>
+  </header>
+  <main>
+    <section class="panel-sim">
+      <canvas id="standingCanvas"></canvas>
+      <div class="controls">
+        <button id="btn1" class="active" onclick="setMode(1)">Modo Fundamental (n=1)</button>
+        <button id="btn2" onclick="setMode(2)">2º Armónico (n=2)</button>
+        <button id="btn3" onclick="setMode(3)">3º Armónico (n=3)</button>
+      </div>
+    </section>
+    <aside class="panel-board">
+      <div class="board-h">Onda Confinada</div>
+      <p class="board-txt">
+        Cuando una onda periódica se propaga y choca contra un extremo fijo, <b>se refleja en sentido opuesto e invertida</b>.
+      </p>
+      <p class="board-txt">
+        Por el <b style="color:var(--gold)">principio de superposición</b>, la onda incidente y la reflejada se combinan:
+      </p>
+      <p class="board-txt" style="text-align: center; color:#7bed9f; font-family: monospace;">
+        y(x,t) = 2A &middot; sen(kx) &middot; cos(&omega;t)
+      </p>
+      <p class="board-txt">
+        <b>Puntos clave:</b><br>
+        &bull; <b style="color:#ff6b6b">Nodos (N):</b> Puntos donde la suma algebraica es siempre cero (reposo permanente).<br>
+        &bull; <b style="color:var(--gold)">Antinodos (A):</b> Puntos con oscilación de amplitud máxima.
+      </p>
+    </aside>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('standingCanvas');
+    const ctx = canvas.getContext('2d');
+    let w, h, t = 0;
+    let n = 1;
+
+    function resize() {
+      w = canvas.width = canvas.parentElement.clientWidth;
+      h = canvas.height = canvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function setMode(newN) {
+      n = newN;
+      document.querySelectorAll('.controls button').forEach((b, idx) => {
+        b.classList.toggle('active', (idx + 1) === n);
+      });
+    }
+
+    function loop() {
+      ctx.clearRect(0, 0, w, h);
+      t += 0.05;
+
+      const leftX = 80;
+      const rightX = w - 80;
+      const L = rightX - leftX;
+      const cy = h * 0.48;
+      const amp = 60;
+
+      // Soportes de los extremos fijos
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(leftX - 12, cy - 80, 12, 160);
+      ctx.fillRect(rightX, cy - 80, 12, 160);
+
+      // Línea de equilibrio
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(leftX, cy);
+      ctx.lineTo(rightX, cy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Dibujo de la envolvente estática
+      ctx.strokeStyle = 'rgba(84, 160, 255, 0.2)';
+      ctx.lineWidth = 1.5;
+      for (let sign of [1, -1]) {
+        ctx.beginPath();
+        for (let x = leftX; x <= rightX; x += 3) {
+          let relX = (x - leftX) / L;
+          let y = cy + sign * amp * Math.sin(n * Math.PI * relX);
+          if (x === leftX) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+
+      // Cuerda en vibración estacionaria
+      ctx.strokeStyle = '#54a0ff';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      for (let x = leftX; x <= rightX; x += 3) {
+        let relX = (x - leftX) / L;
+        let y = cy + amp * Math.sin(n * Math.PI * relX) * Math.cos(t);
+        if (x === leftX) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Identificación de Nodos
+      for (let i = 0; i <= n; i++) {
+        let nx = leftX + (i * L / n);
+        ctx.fillStyle = '#ff6b6b';
+        ctx.beginPath();
+        ctx.arc(nx, cy, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.font = '12px sans-serif';
+        ctx.fillText('N', nx - 4, cy + 22);
+      }
+
+      // Identificación de Antinodos
+      for (let i = 0; i < n; i++) {
+        let ax = leftX + ((i + 0.5) * L / n);
+        ctx.fillStyle = '#f5b041';
+        ctx.font = '12px sans-serif';
+        ctx.fillText('A', ax - 4, cy - 70);
+      }
+
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>

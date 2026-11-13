@@ -1,0 +1,2579 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>De una lámpara colgante al péndulo</title>
+  <style>
+    :root{
+      --madera:#5b3a22;
+      --pizarra:#184f35;
+      --tiza:#f4f1e8;
+      --dorado:#f4c85a;
+      --crema:#efe8da;
+      --oscuro:#17130f;
+      --verde:#2f8f4e;
+      --rojo:#a83b34;
+    }
+
+    *{ box-sizing:border-box; }
+
+    html,body{
+      margin:0;
+      width:100%;
+      height:100%;
+      overflow:hidden;
+      font-family:"Segoe UI",Arial,sans-serif;
+      background:#111;
+    }
+
+    #app{
+      width:100vw;
+      height:100vh;
+      display:grid;
+      grid-template-columns:minmax(0,68fr) minmax(330px,32fr);
+    }
+
+    #leftPane{
+      position:relative;
+      min-width:0;
+      overflow:hidden;
+      background:
+        radial-gradient(circle at 50% 18%,rgba(255,222,142,.22),transparent 34%),
+        linear-gradient(#e8e1d4,#cfc3b1);
+      border-right:5px solid #241910;
+    }
+
+    #scene{
+      display:block;
+      width:100%;
+      height:100%;
+    }
+
+    #sceneLabel{
+      position:absolute;
+      left:20px;
+      top:18px;
+      max-width:56%;
+      padding:8px 13px;
+      border-radius:10px;
+      color:#fff8df;
+      background:rgba(45,29,17,.72);
+      border:1px solid rgba(255,255,255,.18);
+      font-size:clamp(13px,1.2vw,18px);
+      line-height:1.25;
+      opacity:0;
+      transform:translateY(-8px);
+      transition:.45s ease;
+      pointer-events:none;
+    }
+
+    #sceneLabel.visible{
+      opacity:1;
+      transform:none;
+    }
+
+    #subtitle{
+      position:absolute;
+      left:5%;
+      right:5%;
+      bottom:43px;
+      min-height:52px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:11px 18px;
+      border-radius:14px;
+      color:white;
+      text-align:center;
+      font-size:clamp(15px,1.45vw,22px);
+      line-height:1.3;
+      background:rgba(13,10,8,.72);
+      border:1px solid rgba(255,255,255,.18);
+      box-shadow:0 8px 24px rgba(0,0,0,.2);
+      opacity:0;
+      transition:.35s ease;
+      pointer-events:none;
+    }
+
+    #subtitle.visible{ opacity:1; }
+
+    #rightPane{
+      position:relative;
+      min-width:0;
+      padding:15px 14px 22px;
+      color:var(--tiza);
+      background:
+        linear-gradient(rgba(255,255,255,.02),rgba(255,255,255,.01)),
+        repeating-linear-gradient(0deg,transparent 0 36px,rgba(255,255,255,.018) 37px 38px),
+        var(--pizarra);
+      border:12px solid var(--madera);
+      box-shadow:inset 0 0 40px rgba(0,0,0,.28);
+      overflow:hidden;
+    }
+
+    #rightPane::after{
+      content:"";
+      position:absolute;
+      left:5%;
+      right:5%;
+      bottom:5px;
+      height:6px;
+      border-radius:10px;
+      background:rgba(255,255,255,.16);
+    }
+
+    #boardTitle{
+      width:100%;
+      margin-bottom:10px;
+      padding-bottom:9px;
+      border-bottom:1px solid rgba(255,255,255,.22);
+      color:var(--dorado);
+      text-align:center;
+      font-family:Georgia,"Times New Roman",serif;
+      font-size:clamp(18px,1.6vw,26px);
+      font-weight:800;
+      letter-spacing:.2px;
+      text-shadow:1px 1px 0 rgba(0,0,0,.45);
+    }
+
+    #boardText{
+      height:calc(100% - 56px);
+      overflow:auto;
+      padding:3px 5px 22px 1px;
+      scrollbar-width:thin;
+    }
+
+    .boardItem{
+      margin:10px 0;
+      padding:10px 11px 10px 14px;
+      border-left:4px solid rgba(244,200,90,.92);
+      border-radius:8px;
+      background:rgba(0,0,0,.12);
+      font-family:"Comic Sans MS","Segoe Print",cursive;
+      font-size:clamp(14px,1.2vw,19px);
+      line-height:1.34;
+      opacity:0;
+      transform:translateX(12px);
+      animation:boardIn .55s forwards;
+    }
+
+    .boardItem strong{ color:#ffe49d; }
+
+    .boardQuestion{
+      border-left-color:#9ee7c1;
+      background:rgba(158,231,193,.09);
+      font-size:clamp(15px,1.3vw,21px);
+    }
+
+    .vec{
+      position:relative;
+      display:inline-block;
+      padding-top:.18em;
+      line-height:1;
+      white-space:nowrap;
+      font-style:italic;
+      font-family:Georgia,"Times New Roman",serif;
+      font-weight:700;
+    }
+
+    .vec::after{
+      content:"";
+      position:absolute;
+      left:-.06em;
+      right:-.06em;
+      top:-.16em;
+      border-top:2px solid currentColor;
+    }
+
+    .vec::before{
+      content:"";
+      position:absolute;
+      right:-.18em;
+      top:-.30em;
+      width:0;
+      height:0;
+      border-left:7px solid currentColor;
+      border-top:4px solid transparent;
+      border-bottom:4px solid transparent;
+    }
+
+    @keyframes boardIn{
+      to{ opacity:1; transform:none; }
+    }
+
+    #overlay{
+      position:fixed;
+      inset:0;
+      z-index:50;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+      background:
+        radial-gradient(circle at 50% 20%,rgba(244,200,90,.18),transparent 35%),
+        rgba(13,10,8,.94);
+      color:white;
+    }
+
+    .startCard{
+      width:min(760px,94vw);
+      padding:34px 30px;
+      border:1px solid rgba(255,255,255,.18);
+      border-radius:24px;
+      background:rgba(255,255,255,.08);
+      box-shadow:0 20px 60px rgba(0,0,0,.38);
+      text-align:center;
+    }
+
+    .startCard h1{
+      margin:0 0 12px;
+      font-family:Georgia,"Times New Roman",serif;
+      font-size:clamp(30px,4vw,52px);
+      color:#fff2c8;
+    }
+
+    .startCard p{
+      margin:8px auto 18px;
+      max-width:650px;
+      font-size:clamp(15px,1.6vw,20px);
+      line-height:1.45;
+      color:#eee7da;
+    }
+
+    #voiceInfo{
+      min-height:22px;
+      margin:5px 0 18px;
+      color:#cfdbc9;
+      font-size:14px;
+    }
+
+    button{
+      border:0;
+      border-radius:999px;
+      padding:13px 25px;
+      font:800 16px "Segoe UI",Arial,sans-serif;
+      cursor:pointer;
+      color:white;
+      box-shadow:0 8px 22px rgba(0,0,0,.28);
+      transition:.18s ease;
+    }
+
+    button:hover{ transform:translateY(-2px); filter:brightness(1.07); }
+    button:disabled{ opacity:.6; cursor:default; transform:none; }
+
+    #startBtn{ background:var(--verde); }
+
+    #playbackControls,
+    #endControls{
+      position:fixed;
+      left:34%;
+      z-index:40;
+      display:none;
+      gap:14px;
+      transform:translateX(-50%);
+    }
+
+    #playbackControls,
+    #endControls{ bottom:6px; }
+
+    #playbackControls button,
+    #endControls button{
+      padding:7px 18px;
+      font-size:14px;
+      line-height:1.05;
+      box-shadow:0 5px 15px rgba(0,0,0,.25);
+    }
+
+    #pauseBtn{ background:#c88b20; }
+    #rewindBtn{ background:#5f466f; }
+    #repeatBtn{ background:var(--verde); }
+    #exitBtn{ background:var(--rojo); }
+
+    #audioWarning{
+      display:none;
+      position:fixed;
+      left:18px;
+      bottom:18px;
+      z-index:60;
+      max-width:420px;
+      padding:10px 13px;
+      border-radius:10px;
+      background:#7f251f;
+      color:white;
+      font-size:14px;
+    }
+
+    @media(max-width:980px){
+      html,body{ overflow:auto; }
+      #app{
+        height:auto;
+        min-height:100vh;
+        grid-template-columns:1fr;
+        grid-template-rows:62vh 70vh;
+      }
+      #rightPane{ border-width:9px; }
+      #playbackControls, #endControls{ left:50%; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <section id="leftPane" aria-label="Animación de una lámpara colgante">
+      <canvas id="scene"></canvas>
+      <div id="sceneLabel">¿Qué ves?</div>
+      <div id="subtitle"></div>
+    </section>
+
+    <aside id="rightPane" aria-label="Pizarra de resumen">
+      <div id="boardTitle">OBSERVAR, PREGUNTAR Y DESCRIBIR</div>
+      <div id="boardText"></div>
+    </aside>
+  </div>
+
+  <div id="overlay">
+    <div class="startCard">
+      <h1>De una lámpara colgante al péndulo</h1>
+      <div id="voiceInfo" hidden></div>
+      <button id="startBtn">COMENZAR</button>
+    </div>
+  </div>
+
+  <audio id="bgm" src="onda.mp3" preload="auto" loop></audio>
+
+  <div id="playbackControls" aria-label="Controles de reproducción">
+    <button id="pauseBtn">PAUSAR</button>
+    <button id="rewindBtn">REGRESAR 1 MINUTO</button>
+  </div>
+
+  <div id="endControls">
+    <button id="repeatBtn">REPETIR</button>
+    <button id="exitBtn">SALIR</button>
+  </div>
+
+  <div id="audioWarning">
+    No se encontró <strong>onda.mp3</strong>. La narración puede continuar, pero sin música.
+  </div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* =========================================================
+     ELEMENTOS Y ESTADO GENERAL
+     ========================================================= */
+  const canvas = document.getElementById("scene");
+  const ctx = canvas.getContext("2d");
+  const boardText = document.getElementById("boardText");
+  const boardTitle = document.getElementById("boardTitle");
+  const bgm = document.getElementById("bgm");
+  const overlay = document.getElementById("overlay");
+  const startBtn = document.getElementById("startBtn");
+  const pauseBtn = document.getElementById("pauseBtn");
+  const rewindBtn = document.getElementById("rewindBtn");
+  const playbackControls = document.getElementById("playbackControls");
+  const repeatBtn = document.getElementById("repeatBtn");
+  const exitBtn = document.getElementById("exitBtn");
+  const endControls = document.getElementById("endControls");
+  const subtitle = document.getElementById("subtitle");
+  const sceneLabel = document.getElementById("sceneLabel");
+  const voiceInfo = document.getElementById("voiceInfo");
+  const audioWarning = document.getElementById("audioWarning");
+
+  let W = 0;
+  let H = 0;
+  let running = false;
+  let selectedVoice = null;
+  let runToken = 0;
+  let activeRunPromise = Promise.resolve();
+
+  // Movimiento autónomo de la lámpara.
+  const LAMP_AMPLITUDE = 0.30;
+  const LAMP_DAMPING = 0.12;
+  const LAMP_OMEGA = Math.PI;
+  const PUSH_DURATION = 1600;
+  const EXTREME_HOLD_DURATION = 1000;
+  const STOP_AMPLITUDE = 0.006;
+
+  const lampMotion = {
+    active:false,
+    phase:"rest",
+    phaseStart:performance.now(),
+    fromTheta:0,
+    theta:0,
+    arrowVisible:false,
+    showArrowThisPush:false
+  };
+
+  // Recursos visuales de la continuación: comparaciones, trayectorias y modelo.
+  const comparisonState = {
+    kind:"none",          // none | car | fall | circle
+    startedAt:performance.now(),
+    showTrajectory:false
+  };
+
+  const modelState = {
+    active:false,
+    progress:0,
+    fromProgress:0,
+    toProgress:1,
+    startedAt:performance.now(),
+    duration:5200
+  };
+
+  // Estado de la pausa conceptual posterior a la construcción del modelo físico.
+  const conceptState = {
+    mode:"none",
+    startedAt:performance.now(),
+    duration:0,
+    pendulumTheta:null,
+    idealProgress:0,
+    variableCount:0,
+    variableRunning:false,
+    variableMotionStartedAt:0,
+    diagramStage:0
+  };
+
+  const equilibriumHint = {
+    active:false
+  };
+
+  const MUSIC_BACKGROUND = 0.10;
+  const MUSIC_HIGH = 0.78;
+
+  const clamp = (value,min,max) => Math.max(min,Math.min(max,value));
+
+  class RunCancelled extends Error{
+    constructor(){
+      super("Ejecución cancelada");
+      this.name="RunCancelled";
+    }
+  }
+
+  const playbackState={
+    paused:false,
+    pauseStartedAt:0,
+    totalPausedMs:0,
+    activeToken:0,
+    records:[],
+    cursor:0,
+    seeking:false,
+    seekTargetMs:0,
+    accumulatedMs:0,
+    actionDepth:0,
+    inAction:false,
+    actionBaseMs:0,
+    actionStartedAt:0,
+    controlsUnlocked:false,
+    rewindInProgress:false,
+    controlsSuppressed:false
+  };
+
+  function activeClock(){
+    const now=performance.now();
+    const currentPause=playbackState.paused ? now-playbackState.pauseStartedAt : 0;
+    return now-playbackState.totalPausedMs-currentPause;
+  }
+
+  function presentationElapsedMs(){
+    if(playbackState.inAction){
+      return playbackState.actionBaseMs+Math.max(0,activeClock()-playbackState.actionStartedAt);
+    }
+    return playbackState.accumulatedMs;
+  }
+
+  function prepareTimeline(token,{seekTargetMs=0,replayRecords=[]}={}){
+    playbackState.paused=false;
+    playbackState.pauseStartedAt=0;
+    playbackState.totalPausedMs=0;
+    playbackState.activeToken=token;
+    playbackState.records=Array.isArray(replayRecords) ? replayRecords.map(item=>({...item})) : [];
+    playbackState.cursor=0;
+    playbackState.seeking=seekTargetMs>0 && playbackState.records.length>0;
+    playbackState.seekTargetMs=Math.max(0,seekTargetMs);
+    playbackState.accumulatedMs=0;
+    playbackState.actionDepth=0;
+    playbackState.inAction=false;
+    playbackState.actionBaseMs=0;
+    playbackState.actionStartedAt=activeClock();
+    playbackState.controlsSuppressed=false;
+  }
+
+  async function timelineAction(kind,executor){
+    const token=playbackState.activeToken;
+    if(token!==runToken) throw new RunCancelled();
+
+    if(playbackState.actionDepth>0) return executor();
+    playbackState.actionDepth=1;
+
+    try{
+      if(playbackState.seeking){
+        const record=playbackState.records[playbackState.cursor];
+        if(record && record.kind===kind && record.endMs<=playbackState.seekTargetMs){
+          playbackState.accumulatedMs=record.endMs;
+          playbackState.cursor++;
+          return;
+        }
+
+        // Se reanuda al comienzo de la secuencia que contiene el punto buscado.
+        playbackState.seeking=false;
+        playbackState.records=playbackState.records.slice(0,playbackState.cursor);
+      }
+
+      const base=playbackState.accumulatedMs;
+      const started=activeClock();
+      playbackState.inAction=true;
+      playbackState.actionBaseMs=base;
+      playbackState.actionStartedAt=started;
+
+      await executor();
+      if(token!==runToken) throw new RunCancelled();
+
+      const endMs=base+Math.max(0,activeClock()-started);
+      playbackState.accumulatedMs=endMs;
+      playbackState.records.push({kind,startMs:base,endMs});
+      playbackState.cursor=playbackState.records.length;
+    }finally{
+      playbackState.inAction=false;
+      playbackState.actionDepth=0;
+    }
+  }
+
+  function rawSleep(ms){
+    return new Promise((resolve,reject)=>{
+      const token=playbackState.activeToken;
+      const started=activeClock();
+
+      function tick(){
+        if(token!==runToken) return reject(new RunCancelled());
+        if(activeClock()-started>=ms) return resolve();
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
+  function sleep(ms){
+    return timelineAction(`pausa:${ms}`,()=>rawSleep(ms));
+  }
+
+  /* =========================================================
+     CANVAS: LÁMPARA ANTIGUA CON VELA ENCENDIDA
+     ========================================================= */
+  function resizeCanvas(){
+    const dpr = Math.max(1,Math.min(2,window.devicePixelRatio || 1));
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    W = rect.width;
+    H = rect.height;
+  }
+
+  window.addEventListener("resize",resizeCanvas);
+  resizeCanvas();
+
+  function easeInOutCubic(p){
+    return p<0.5 ? 4*p*p*p : 1-Math.pow(-2*p+2,3)/2;
+  }
+
+
+  function lerp(a,b,p){
+    return a+(b-a)*p;
+  }
+
+  function setComparison(kind,{trajectory=false}={}){
+    comparisonState.kind=kind;
+    comparisonState.showTrajectory=trajectory;
+    comparisonState.startedAt=performance.now();
+  }
+
+  function clearComparison(){
+    comparisonState.kind="none";
+    comparisonState.showTrajectory=false;
+    comparisonState.startedAt=performance.now();
+  }
+
+  function startModelTransformation(duration=5200){
+    clearComparison();
+    stopLampCycle();
+    modelState.active=true;
+    modelState.fromProgress=modelState.progress;
+    modelState.toProgress=1;
+    modelState.startedAt=performance.now();
+    modelState.duration=duration;
+  }
+
+  function startLampRestoration(duration=5200){
+    clearComparison();
+    stopLampCycle();
+    modelState.active=true;
+    modelState.fromProgress=modelState.progress;
+    modelState.toProgress=0;
+    modelState.startedAt=performance.now();
+    modelState.duration=duration;
+  }
+
+  function resetVisualContinuation(){
+    clearComparison();
+    setEquilibriumHint(false);
+    modelState.active=false;
+    modelState.progress=0;
+    modelState.fromProgress=0;
+    modelState.toProgress=1;
+    modelState.startedAt=performance.now();
+    clearConceptMode();
+  }
+
+  function updateModelTransformation(now){
+    if(!modelState.active) return;
+    const p=clamp((now-modelState.startedAt)/modelState.duration,0,1);
+    modelState.progress=lerp(modelState.fromProgress,modelState.toProgress,easeInOutCubic(p));
+    if(p>=1) modelState.active=false;
+  }
+
+  function setConceptMode(mode,{duration=0}={}){
+    conceptState.mode=mode;
+    conceptState.startedAt=performance.now();
+    conceptState.duration=duration;
+    conceptState.pendulumTheta=null;
+    conceptState.variableCount=0;
+    conceptState.variableRunning=false;
+    conceptState.variableMotionStartedAt=0;
+    conceptState.diagramStage=0;
+    if(mode!=="idealize" && mode!=="ideal") conceptState.idealProgress=0;
+  }
+
+  function setVariableCount(count){
+    conceptState.variableCount=clamp(Math.round(count),0,3);
+  }
+
+  function startVariableMotion(){
+    conceptState.variableRunning=true;
+    conceptState.variableMotionStartedAt=performance.now();
+  }
+
+  function setDiagramStage(stage){
+    conceptState.diagramStage=clamp(Math.round(stage),0,4);
+  }
+
+  function clearConceptMode(){
+    conceptState.mode="none";
+    conceptState.startedAt=performance.now();
+    conceptState.duration=0;
+    conceptState.pendulumTheta=null;
+    conceptState.idealProgress=0;
+    conceptState.variableCount=0;
+    conceptState.variableRunning=false;
+    conceptState.variableMotionStartedAt=0;
+    conceptState.diagramStage=0;
+  }
+
+  function updateConceptState(now){
+    const elapsed=(now-conceptState.startedAt)/1000;
+    conceptState.pendulumTheta=null;
+
+    if(conceptState.mode==="work"){
+      const p=clamp(elapsed/3.4,0,1);
+      conceptState.pendulumTheta=LAMP_AMPLITUDE*easeInOutCubic(p);
+    }else if(conceptState.mode==="forces" || conceptState.mode==="equilibrium"){
+      conceptState.pendulumTheta=.27*Math.cos(1.15*elapsed);
+    }else if(conceptState.mode==="energyTransform"){
+      conceptState.pendulumTheta=.34*Math.cos(1.35*elapsed);
+    }else if(conceptState.mode==="damping"){
+      conceptState.pendulumTheta=.34*Math.exp(-.18*elapsed)*Math.cos(Math.PI*elapsed);
+    }else if(conceptState.mode==="variables"){
+      const comparisonElapsed=conceptState.variableRunning
+        ? (now-conceptState.variableMotionStartedAt)/1000
+        : 0;
+      conceptState.pendulumTheta=.24*Math.cos(1.08*comparisonElapsed);
+    }else if(conceptState.mode==="freeBody"){
+      // El péndulo queda congelado en el extremo derecho.
+      conceptState.pendulumTheta=.42;
+    }else if(conceptState.mode==="idealize"){
+      conceptState.idealProgress=clamp(elapsed/7,0,1);
+      conceptState.pendulumTheta=.24*Math.cos(1.3*elapsed);
+    }else if(conceptState.mode==="ideal"){
+      conceptState.idealProgress=1;
+      conceptState.pendulumTheta=.24*Math.cos(1.3*elapsed);
+    }
+  }
+
+  function startLampCycle(){
+    lampMotion.active=true;
+    lampMotion.phase="push";
+    lampMotion.phaseStart=performance.now();
+    lampMotion.fromTheta=0;
+    lampMotion.theta=0;
+    lampMotion.arrowVisible=false;
+    lampMotion.showArrowThisPush=false;
+  }
+
+  function stopLampCycle(){
+    lampMotion.active=false;
+    lampMotion.phase="rest";
+    lampMotion.phaseStart=performance.now();
+    lampMotion.fromTheta=0;
+    lampMotion.theta=0;
+    lampMotion.arrowVisible=false;
+    lampMotion.showArrowThisPush=false;
+  }
+
+  function updateLampMotion(now){
+    if(!lampMotion.active){
+      lampMotion.theta=0;
+      lampMotion.arrowVisible=false;
+      return;
+    }
+
+    const elapsedMs=now-lampMotion.phaseStart;
+
+    if(lampMotion.phase==="push"){
+      const p=clamp(elapsedMs/PUSH_DURATION,0,1);
+      const eased=easeInOutCubic(p);
+      lampMotion.theta=lampMotion.fromTheta+(LAMP_AMPLITUDE-lampMotion.fromTheta)*eased;
+      lampMotion.arrowVisible=lampMotion.showArrowThisPush;
+
+      if(p>=1){
+        lampMotion.theta=LAMP_AMPLITUDE;
+        lampMotion.phase="hold";
+        lampMotion.phaseStart=now;
+      }
+      return;
+    }
+
+    if(lampMotion.phase==="hold"){
+      lampMotion.theta=LAMP_AMPLITUDE;
+      lampMotion.arrowVisible=lampMotion.showArrowThisPush;
+
+      if(elapsedMs>=EXTREME_HOLD_DURATION){
+        lampMotion.phase="damped";
+        lampMotion.phaseStart=now;
+        lampMotion.arrowVisible=false;
+      }
+      return;
+    }
+
+    if(lampMotion.phase==="damped"){
+      const t=elapsedMs/1000;
+      const envelope=LAMP_AMPLITUDE*Math.exp(-LAMP_DAMPING*t);
+      lampMotion.theta=envelope*Math.cos(LAMP_OMEGA*t);
+      lampMotion.arrowVisible=false;
+
+      // La función nunca se anula exactamente. Cuando su envolvente ya es
+      // imperceptible, se considera detenida y comienza un nuevo empuje.
+      if(envelope<=STOP_AMPLITUDE){
+        lampMotion.phase="push";
+        lampMotion.phaseStart=now;
+        lampMotion.fromTheta=lampMotion.theta;
+        lampMotion.showArrowThisPush=true;
+        lampMotion.arrowVisible=true;
+      }
+    }
+  }
+
+  function roundedRect(x,y,w,h,r,fill,stroke,lineWidth=1){
+    ctx.beginPath();
+    ctx.roundRect(x,y,w,h,r);
+    if(fill){ ctx.fillStyle=fill; ctx.fill(); }
+    if(stroke){ ctx.strokeStyle=stroke; ctx.lineWidth=lineWidth; ctx.stroke(); }
+  }
+
+  function drawRoom(){
+    const p=modelState.progress;
+    const wallGradient = ctx.createLinearGradient(0,0,0,H);
+    wallGradient.addColorStop(0,"#eee8dc");
+    wallGradient.addColorStop(.72,"#d7cbbb");
+    wallGradient.addColorStop(1,"#bca991");
+    ctx.fillStyle = wallGradient;
+    ctx.fillRect(0,0,W,H);
+
+    // Luz ambiental de la vela: desaparece al construirse el modelo.
+    ctx.save();
+    ctx.globalAlpha=1-p;
+    const glow = ctx.createRadialGradient(W*.5,H*.49,20,W*.5,H*.49,Math.max(W,H)*.55);
+    glow.addColorStop(0,"rgba(255,210,108,.18)");
+    glow.addColorStop(.45,"rgba(255,190,85,.07)");
+    glow.addColorStop(1,"rgba(255,180,60,0)");
+    ctx.fillStyle=glow;
+    ctx.fillRect(0,0,W,H);
+    ctx.restore();
+
+    // Techo y moldura: se desvanecen cuando aparece el soporte universal.
+    ctx.save();
+    ctx.globalAlpha=1-p;
+    ctx.fillStyle="#6a4a31";
+    ctx.fillRect(0,0,W,22);
+    ctx.fillStyle="#3f2b1d";
+    ctx.fillRect(0,22,W,8);
+    ctx.restore();
+
+    // Sombras discretas en la pared.
+    ctx.strokeStyle="rgba(83,59,40,.08)";
+    ctx.lineWidth=1;
+    for(let y=120;y<H;y+=76){
+      ctx.beginPath();
+      ctx.moveTo(0,y);
+      ctx.lineTo(W,y);
+      ctx.stroke();
+    }
+
+    // Piso.
+    ctx.fillStyle="#73543b";
+    ctx.fillRect(0,H*.88,W,H*.12);
+    ctx.fillStyle="rgba(255,255,255,.08)";
+    ctx.fillRect(0,H*.88,W,4);
+  }
+
+  function drawPushArrow(lampX,lampY,theta,now){
+    if(!lampMotion.arrowVisible) return;
+
+    const localX=-52;
+    const localY=49;
+    const c=Math.cos(theta);
+    const s=Math.sin(theta);
+    const tipX=lampX+localX*c+localY*s;
+    const tipY=lampY-localX*s+localY*c;
+    const arrowLength=clamp(W*.13,92,150);
+    const pulse=1+Math.sin(now*.009)*.035;
+    const headLength=22*pulse;
+    const headHalfHeight=13*pulse;
+    const tailX=tipX-arrowLength;
+
+    ctx.save();
+    ctx.lineCap="round";
+    ctx.lineJoin="round";
+    ctx.strokeStyle="rgba(255,248,224,.92)";
+    ctx.lineWidth=11;
+    ctx.beginPath();
+    ctx.moveTo(tailX,tipY);
+    ctx.lineTo(tipX-headLength+3,tipY);
+    ctx.stroke();
+    ctx.fillStyle="rgba(255,248,224,.92)";
+    ctx.beginPath();
+    ctx.moveTo(tipX+3,tipY);
+    ctx.lineTo(tipX-headLength-3,tipY-headHalfHeight-4);
+    ctx.lineTo(tipX-headLength-3,tipY+headHalfHeight+4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle="#a83b34";
+    ctx.lineWidth=6;
+    ctx.beginPath();
+    ctx.moveTo(tailX,tipY);
+    ctx.lineTo(tipX-headLength+2,tipY);
+    ctx.stroke();
+    ctx.fillStyle="#a83b34";
+    ctx.beginPath();
+    ctx.moveTo(tipX+1,tipY);
+    ctx.lineTo(tipX-headLength,tipY-headHalfHeight);
+    ctx.lineTo(tipX-headLength,tipY+headHalfHeight);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawUniversalSupport(alpha,pivotX,pivotY){
+    if(alpha<=0) return;
+    const standX=pivotX-clamp(W*.16,105,150);
+    const baseY=H*.86;
+
+    ctx.save();
+    ctx.globalAlpha=alpha;
+    ctx.lineCap="round";
+    ctx.lineJoin="round";
+
+    // Base pesada.
+    roundedRect(standX-66,baseY-13,132,20,7,"#4c5154","#24282a",2);
+    roundedRect(standX-42,baseY-22,84,12,5,"#697074","#303537",1.5);
+
+    // Varilla vertical y brazo horizontal.
+    ctx.strokeStyle="#3f4548";
+    ctx.lineWidth=8;
+    ctx.beginPath();
+    ctx.moveTo(standX,baseY-21);
+    ctx.lineTo(standX,pivotY-16);
+    ctx.lineTo(pivotX,pivotY-16);
+    ctx.stroke();
+
+    // Brillos metálicos.
+    ctx.strokeStyle="rgba(255,255,255,.36)";
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(standX-2,baseY-26);
+    ctx.lineTo(standX-2,pivotY-20);
+    ctx.lineTo(pivotX-3,pivotY-20);
+    ctx.stroke();
+
+    // Nuez, pinza y punto de suspensión.
+    roundedRect(standX-13,pivotY-31,26,28,5,"#646b6e","#282d2f",2);
+    roundedRect(pivotX-16,pivotY-27,32,17,4,"#6e7477","#2e3335",1.5);
+    roundedRect(pivotX-6,pivotY-13,12,7,3,"#5c6366","#2e3335",1.2);
+    ctx.strokeStyle="#2e3335";
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.moveTo(pivotX,pivotY-6);
+    ctx.lineTo(pivotX,pivotY);
+    ctx.stroke();
+    ctx.fillStyle="#24282a";
+    ctx.beginPath();
+    ctx.arc(pivotX,pivotY,4.5,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawLamp(now){
+    updateLampMotion(now);
+    const p=modelState.progress;
+
+    const initialPivotX=W*.5;
+    const initialPivotY=28;
+    const finalPivotX=W*.54;
+    const finalPivotY=H*.24;
+    const initialLength=Math.min(H*.43,W*.34);
+    const finalLength=Math.min(H*.36,W*.29);
+
+    const pivotX=lerp(initialPivotX,finalPivotX,easeInOutCubic(p));
+    const pivotY=lerp(initialPivotY,finalPivotY,easeInOutCubic(p));
+    const length=lerp(initialLength,finalLength,easeInOutCubic(p));
+    let theta=lampMotion.theta*(1-p);
+    if(p>=.999 && conceptState.pendulumTheta!==null) theta=conceptState.pendulumTheta;
+    const lampX=pivotX+length*Math.sin(theta);
+    const lampY=pivotY+length*Math.cos(theta);
+
+    drawUniversalSupport(p,pivotX,pivotY);
+
+    // Sombra y luz propias de la lámpara.
+    ctx.save();
+    ctx.globalAlpha=(1-p)*.12;
+    ctx.fillStyle="#3f2b1d";
+    ctx.beginPath();
+    ctx.ellipse(lampX+46,lampY+85,64,28,-theta,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // Punto de suspensión original.
+    ctx.save();
+    ctx.globalAlpha=1-p;
+    ctx.fillStyle="#2c2119";
+    ctx.beginPath();
+    ctx.arc(pivotX,pivotY,8,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // La cadena se afina gradualmente hasta convertirse en hilo.
+    ctx.strokeStyle=p>.5 ? "#2f3132" : "#35271d";
+    ctx.lineWidth=lerp(4,lerp(2,1.25,conceptState.idealProgress),p);
+    ctx.beginPath();
+    ctx.moveTo(pivotX,pivotY);
+    ctx.lineTo(lampX,lampY);
+    ctx.stroke();
+
+    // Eslabones de la cadena, que desaparecen durante la transformación.
+    if(p<1){
+      const links=13;
+      ctx.save();
+      ctx.globalAlpha=1-p;
+      for(let i=1;i<links;i++){
+        const q=i/links;
+        const x=pivotX+(lampX-pivotX)*q;
+        const y=pivotY+(lampY-pivotY)*q;
+        ctx.save();
+        ctx.translate(x,y);
+        ctx.rotate(-theta);
+        ctx.strokeStyle="rgba(92,66,46,.85)";
+        ctx.lineWidth=1.2;
+        ctx.beginPath();
+        ctx.ellipse(0,0,4,6,0,0,Math.PI*2);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    // Lámpara antigua: pierde opacidad mientras surge la esfera.
+    if(p<1){
+      ctx.save();
+      ctx.globalAlpha=1-p;
+      ctx.translate(lampX,lampY);
+      ctx.rotate(-theta);
+
+      const lampGlow=ctx.createRadialGradient(0,24,5,0,24,125);
+      lampGlow.addColorStop(0,"rgba(255,231,139,.45)");
+      lampGlow.addColorStop(.35,"rgba(255,195,80,.18)");
+      lampGlow.addColorStop(1,"rgba(255,180,50,0)");
+      ctx.fillStyle=lampGlow;
+      ctx.beginPath();
+      ctx.arc(0,24,125,0,Math.PI*2);
+      ctx.fill();
+
+      ctx.strokeStyle="#3f2d20";
+      ctx.lineWidth=5;
+      ctx.beginPath();
+      ctx.moveTo(-38,-2);
+      ctx.lineTo(38,-2);
+      ctx.stroke();
+
+      ctx.strokeStyle="#5d402a";
+      ctx.lineWidth=4;
+      ctx.beginPath();
+      ctx.moveTo(-34,-1); ctx.lineTo(-47,72);
+      ctx.moveTo(34,-1);  ctx.lineTo(47,72);
+      ctx.moveTo(-47,72); ctx.lineTo(47,72);
+      ctx.stroke();
+
+      ctx.fillStyle="rgba(255,235,178,.14)";
+      ctx.beginPath();
+      ctx.moveTo(-34,4); ctx.lineTo(34,4); ctx.lineTo(43,67); ctx.lineTo(-43,67);
+      ctx.closePath();
+      ctx.fill();
+
+      roundedRect(-52,68,104,14,6,"#453022","#211710",2);
+      roundedRect(-35,80,70,9,4,"#5a3c27","#211710",1.5);
+      roundedRect(-10,32,20,38,5,"#f5ead0","#cdbb91",1.2);
+      ctx.fillStyle="#222";
+      ctx.fillRect(-1.1,25,2.2,8);
+
+      const flicker=Math.sin(now*.018)*1.7+Math.sin(now*.031)*1.1;
+      ctx.save();
+      ctx.translate(flicker*.25,23);
+      ctx.fillStyle="rgba(255,104,34,.92)";
+      ctx.beginPath();
+      ctx.moveTo(0,-25-flicker);
+      ctx.bezierCurveTo(12,-13,8,1,0,5);
+      ctx.bezierCurveTo(-9,0,-11,-12,0,-25-flicker);
+      ctx.fill();
+      ctx.fillStyle="#ffe98a";
+      ctx.beginPath();
+      ctx.moveTo(0,-17-flicker*.45);
+      ctx.bezierCurveTo(6,-9,5,-2,0,1);
+      ctx.bezierCurveTo(-5,-3,-5,-10,0,-17-flicker*.45);
+      ctx.fill();
+      ctx.restore();
+      ctx.restore();
+    }
+
+    // Esfera del modelo: aparece primero en el centro visual de la lámpara
+    // y luego se define como la masa del péndulo.
+    if(p>0){
+      ctx.save();
+      ctx.globalAlpha=p;
+      const eased=easeInOutCubic(p);
+      const localCenterX=0;
+      const localCenterY=44;
+      const lampCenterX=lampX+localCenterX*Math.cos(theta)+localCenterY*Math.sin(theta);
+      const lampCenterY=lampY-localCenterX*Math.sin(theta)+localCenterY*Math.cos(theta);
+      const sphereX=lerp(lampCenterX,lampX,eased);
+      const sphereY=lerp(lampCenterY,lampY,eased);
+      const radius=lerp(7,lerp(12,6,conceptState.idealProgress),eased);
+      const sphere=ctx.createRadialGradient(sphereX-radius*.35,sphereY-radius*.38,3,sphereX,sphereY,radius);
+      sphere.addColorStop(0,"#fafafa");
+      sphere.addColorStop(.36,"#bfc7ca");
+      sphere.addColorStop(1,"#4c5559");
+      ctx.fillStyle=sphere;
+      ctx.beginPath();
+      ctx.arc(sphereX,sphereY,radius,0,Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle="#2e3436";
+      ctx.lineWidth=2;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawDottedTrail(points,{closed=false}={}){
+    if(points.length<2) return;
+    ctx.save();
+    ctx.strokeStyle="rgba(168,59,52,.84)";
+    ctx.lineWidth=3;
+    ctx.setLineDash([2,10]);
+    ctx.lineCap="round";
+    ctx.beginPath();
+    ctx.moveTo(points[0][0],points[0][1]);
+    for(let i=1;i<points.length;i++) ctx.lineTo(points[i][0],points[i][1]);
+    if(closed) ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawTrajectoryCallout(labelX,labelY,targetX,targetY,textLabel="Trayectoria",{gap=10}={}){
+    ctx.save();
+    ctx.lineCap="round";
+    ctx.lineJoin="round";
+
+    ctx.font='700 18px "Segoe UI", Arial, sans-serif';
+    const padX=12;
+    const boxW=Math.max(108, ctx.measureText(textLabel).width + padX*2);
+    const boxH=34;
+
+    ctx.fillStyle="rgba(255,248,228,.96)";
+    ctx.strokeStyle="#8a2f2a";
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.roundRect(labelX, labelY, boxW, boxH, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle="#6a231f";
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    ctx.fillText(textLabel, labelX + boxW/2, labelY + boxH/2 + 1);
+
+    const centerX=labelX+boxW/2;
+    const centerY=labelY+boxH/2;
+    const dx=targetX-centerX;
+    const dy=targetY-centerY;
+    const distance=Math.hypot(dx,dy)||1;
+    const ux=dx/distance;
+    const uy=dy/distance;
+    const halfW=boxW/2;
+    const halfH=boxH/2;
+    const scaleX=Math.abs(ux)>1e-6 ? halfW/Math.abs(ux) : Infinity;
+    const scaleY=Math.abs(uy)>1e-6 ? halfH/Math.abs(uy) : Infinity;
+    const edgeDistance=Math.min(scaleX,scaleY);
+    const startX=centerX+ux*(edgeDistance+gap);
+    const startY=centerY+uy*(edgeDistance+gap);
+    const angle=Math.atan2(targetY-startY,targetX-startX);
+    const headLen=12;
+
+    ctx.strokeStyle="#8a2f2a";
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.moveTo(startX,startY);
+    ctx.lineTo(targetX,targetY);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(targetX,targetY);
+    ctx.lineTo(targetX-headLen*Math.cos(angle-Math.PI/7),targetY-headLen*Math.sin(angle-Math.PI/7));
+    ctx.lineTo(targetX-headLen*Math.cos(angle+Math.PI/7),targetY-headLen*Math.sin(angle+Math.PI/7));
+    ctx.closePath();
+    ctx.fillStyle="#8a2f2a";
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function buildHorizontalTrail(x0,x1,y,steps=36){
+    const points=[];
+    const minX=Math.min(x0,x1);
+    const maxX=Math.max(x0,x1);
+    for(let i=0;i<=steps;i++){
+      const p=i/steps;
+      points.push([lerp(minX,maxX,p),y]);
+    }
+    return points;
+  }
+
+  function buildVerticalTrail(x,y0,y1,steps=36){
+    const points=[];
+    const minY=Math.min(y0,y1);
+    const maxY=Math.max(y0,y1);
+    for(let i=0;i<=steps;i++){
+      const p=i/steps;
+      points.push([x,lerp(minY,maxY,p)]);
+    }
+    return points;
+  }
+
+  function buildArcTrail(cx,cy,radius,startAngle,endAngle,steps=60){
+    const points=[];
+    const total=endAngle-startAngle;
+    for(let i=0;i<=steps;i++){
+      const p=i/steps;
+      const a=startAngle+total*p;
+      points.push([cx+radius*Math.cos(a),cy+radius*Math.sin(a)]);
+    }
+    return points;
+  }
+
+  function drawStoneShape(scale=1){
+    ctx.save();
+    ctx.scale(scale,scale);
+    ctx.fillStyle="#66615b";
+    ctx.strokeStyle="#37332f";
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(-14,-9);
+    ctx.lineTo(-6,-16);
+    ctx.lineTo(4,-18);
+    ctx.lineTo(13,-12);
+    ctx.lineTo(17,-2);
+    ctx.lineTo(14,9);
+    ctx.lineTo(6,15);
+    ctx.lineTo(-4,17);
+    ctx.lineTo(-13,11);
+    ctx.lineTo(-17,1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawCar(now,showTrajectory){
+    const elapsed=(now-comparisonState.startedAt)/1000;
+    const left=W*.13;
+    const right=W*.84;
+    const y=H*.76;
+    const travel=right-left;
+    const x=left+Math.min((elapsed/3),1)*travel;
+
+    if(showTrajectory){
+      drawDottedTrail(buildHorizontalTrail(left,x,y-12,34));
+      drawTrajectoryCallout(W*.14,H*.58,lerp(left,x,.5),y-12,"Trayectorias");
+    }
+
+    ctx.save();
+    ctx.translate(x,y);
+    roundedRect(-42,-22,84,30,8,"#b6483f","#642620",2);
+    roundedRect(-20,-42,47,23,7,"#d46a5f","#642620",2);
+    ctx.fillStyle="#b9d9e7";
+    ctx.fillRect(-14,-37,17,13);
+    ctx.fillRect(7,-37,15,13);
+    ctx.fillStyle="#22282a";
+    for(const wheelX of [-25,27]){
+      ctx.beginPath();
+      ctx.arc(wheelX,11,12,0,Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle="#b9bfc2";
+      ctx.beginPath();
+      ctx.arc(wheelX,11,4,0,Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle="#22282a";
+    }
+    ctx.restore();
+  }
+
+  function drawFallingStone(now,showTrajectory){
+    const elapsed=(now-comparisonState.startedAt)/1000;
+    const x=W*.20;
+    const top=H*.13;
+    const bottom=H*.82;
+
+    // Caída desde el reposo con aceleración visual reducida para que
+    // el desplazamiento pueda observarse con claridad.
+    const pxPerMeter=(bottom-top)/2.2;
+    const acceleration=3*pxPerMeter;
+    const displacement=0.5*acceleration*elapsed*elapsed;
+    const y=Math.min(top+displacement,bottom);
+
+    if(showTrajectory){
+      drawDottedTrail(buildVerticalTrail(x,top-18,y+4,40));
+      drawTrajectoryCallout(W*.04,H*.28,x-2,lerp(top-18,y+4,.5),"Trayectorias");
+    }
+
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(elapsed*1.35);
+    drawStoneShape(0.78);
+    ctx.restore();
+  }
+
+  function drawCircularStone(now,showTrajectory){
+    const elapsed=(now-comparisonState.startedAt)/1000;
+    const cx=W*.76;
+    const cy=H*.67;
+    const radius=clamp(Math.min(W,H)*.135,88,118);
+    const startAngle=-Math.PI/2;
+    const angle=startAngle+Math.min(elapsed/3,1)*(Math.PI*2*0.95);
+    const x=cx+radius*Math.cos(angle);
+    const y=cy+radius*Math.sin(angle);
+
+    if(showTrajectory){
+      drawDottedTrail(buildArcTrail(cx,cy,radius,startAngle,angle,72));
+      const midAngle=(startAngle+angle)/2;
+      drawTrajectoryCallout(W*.76,H*.20,cx+(radius+6)*Math.cos(midAngle),cy+(radius+6)*Math.sin(midAngle),"Trayectorias");
+    }
+
+    ctx.save();
+    ctx.strokeStyle="#5a4634";
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.lineTo(x,y);
+    ctx.stroke();
+    ctx.fillStyle="#40352b";
+    ctx.beginPath();
+    ctx.arc(cx,cy,7,0,Math.PI*2);
+    ctx.fill();
+    ctx.translate(x,y);
+    ctx.rotate(angle*0.85);
+    drawStoneShape(0.78);
+    ctx.restore();
+  }
+
+  function drawComparison(now){
+    if(comparisonState.kind==="car") drawCar(now,comparisonState.showTrajectory);
+    if(comparisonState.kind==="fall") drawFallingStone(now,comparisonState.showTrajectory);
+    if(comparisonState.kind==="circle") drawCircularStone(now,comparisonState.showTrajectory);
+  }
+
+  function pendulumGeometry(){
+    const pivotX=W*.54;
+    const pivotY=H*.24;
+    const length=Math.min(H*.36,W*.29);
+    const theta=conceptState.pendulumTheta ?? 0;
+    return {
+      pivotX,pivotY,length,theta,
+      bobX:pivotX+length*Math.sin(theta),
+      bobY:pivotY+length*Math.cos(theta)
+    };
+  }
+
+  function drawVectorArrow(x1,y1,x2,y2,label,{line="#a83b34",labelSide=1,labelOffset=34,alongOffset=0,lineWidth=4,head=13,labelBackground=true}={}){
+    const angle=Math.atan2(y2-y1,x2-x1);
+    ctx.save();
+    ctx.strokeStyle=line;
+    ctx.fillStyle=line;
+    ctx.lineWidth=lineWidth;
+    ctx.lineCap="round";
+    ctx.beginPath();
+    ctx.moveTo(x1,y1);
+    ctx.lineTo(x2,y2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-head*Math.cos(angle-Math.PI/7),y2-head*Math.sin(angle-Math.PI/7));
+    ctx.lineTo(x2-head*Math.cos(angle+Math.PI/7),y2-head*Math.sin(angle+Math.PI/7));
+    ctx.closePath();
+    ctx.fill();
+    if(label){
+      ctx.font='700 17px "Segoe UI", Arial, sans-serif';
+      ctx.textAlign="center";
+      ctx.textBaseline="middle";
+      const mx=(x1+x2)/2+alongOffset*Math.cos(angle)-labelSide*labelOffset*Math.sin(angle);
+      const my=(y1+y2)/2+alongOffset*Math.sin(angle)+labelSide*labelOffset*Math.cos(angle);
+      const metrics=ctx.measureText(label);
+      if(labelBackground){
+        roundedRect(mx-metrics.width/2-7,my-13,metrics.width+14,26,7,"rgba(255,248,228,.96)","rgba(72,45,28,.45)",1);
+      }
+      ctx.fillStyle="#3c271d";
+      ctx.fillText(label,mx,my+1);
+    }
+    ctx.restore();
+  }
+
+  function drawMathLabel(text,x,y,{color="#3c271d",background="rgba(255,248,228,.96)",font='700 17px "Segoe UI", Arial, sans-serif'}={}){
+    ctx.save();
+    ctx.font=font;
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    const metrics=ctx.measureText(text);
+    if(background){
+      roundedRect(x-metrics.width/2-7,y-13,metrics.width+14,26,7,background,"rgba(72,45,28,.45)",1);
+    }
+    ctx.fillStyle=color;
+    ctx.fillText(text,x,y+1);
+    ctx.restore();
+  }
+
+  function drawMgVectorLabel(x,y,{color="#3c271d",background=true}={}){
+    ctx.save();
+    ctx.font='italic 800 19px Georgia, "Times New Roman", serif';
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    if(background){
+      roundedRect(x-26,y-15,52,30,8,"rgba(255,248,228,.96)","rgba(72,45,28,.45)",1);
+    }
+    ctx.fillStyle=color;
+    ctx.fillText("m",x-9,y+2);
+    ctx.fillText("g",x+9,y+2);
+    ctx.strokeStyle=color;
+    ctx.fillStyle=color;
+    ctx.lineWidth=1.9;
+    ctx.beginPath();
+    ctx.moveTo(x-15,y-10);
+    ctx.lineTo(x+16,y-10);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x+16,y-10);
+    ctx.lineTo(x+10,y-14);
+    ctx.lineTo(x+11,y-6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawTVectorLabel(x,y,{color="#3c271d",background=true}={}){
+    ctx.save();
+    ctx.font='italic 800 20px Georgia, "Times New Roman", serif';
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    if(background){
+      roundedRect(x-18,y-15,36,30,8,"rgba(255,248,228,.96)","rgba(72,45,28,.45)",1);
+    }
+    ctx.fillStyle=color;
+    ctx.fillText("T",x,y+2);
+    ctx.strokeStyle=color;
+    ctx.fillStyle=color;
+    ctx.lineWidth=1.9;
+    ctx.beginPath();
+    ctx.moveTo(x-11,y-10);
+    ctx.lineTo(x+10,y-10);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x+10,y-10);
+    ctx.lineTo(x+4,y-14);
+    ctx.lineTo(x+5,y-6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawSimpleHand(x,y,scale=1){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.scale(scale,scale);
+    ctx.fillStyle="#d7a07d";
+    ctx.strokeStyle="#8e5d43";
+    ctx.lineWidth=2;
+    roundedRect(-44,-16,58,32,13,"#d7a07d","#8e5d43",2);
+    for(let i=0;i<4;i++) roundedRect(5+i*9,-11,18,8,4,"#e3ad89","#8e5d43",1.2);
+    ctx.restore();
+  }
+
+  function wrapCanvasText(text,maxWidth,font){
+    ctx.font=font;
+    const words=String(text).split(/\s+/);
+    const lines=[];
+    let current="";
+    for(const word of words){
+      const candidate=current ? `${current} ${word}` : word;
+      if(current && ctx.measureText(candidate).width>maxWidth){
+        lines.push(current);
+        current=word;
+      }else{
+        current=candidate;
+      }
+    }
+    if(current) lines.push(current);
+    return lines;
+  }
+
+  function drawConceptPanel(title,lines=[]){
+    const x=W*.695;
+    const y=H*.085;
+    const w=Math.max(220,W-x-22);
+    const titleFont='800 22px Georgia, "Times New Roman", serif';
+    const bodyFont='650 16px "Segoe UI", Arial, sans-serif';
+    const textWidth=w-34;
+    const wrapped=[];
+
+    ctx.save();
+    for(const line of lines){
+      const parts=wrapCanvasText(line,textWidth,bodyFont);
+      wrapped.push(...parts);
+    }
+    const h=Math.min(H*.68,86+wrapped.length*24);
+    const gradient=ctx.createLinearGradient(x,y,x+w,y+h);
+    gradient.addColorStop(0,"rgba(255,235,93,.96)");
+    gradient.addColorStop(.55,"rgba(246,174,66,.95)");
+    gradient.addColorStop(1,"rgba(205,68,55,.95)");
+    roundedRect(x,y,w,h,18,gradient,"rgba(109,45,28,.78)",2.4);
+
+    ctx.fillStyle="#4b241b";
+    ctx.font=titleFont;
+    ctx.textAlign="left";
+    ctx.textBaseline="top";
+    const titleLines=wrapCanvasText(title,textWidth,titleFont);
+    titleLines.forEach((line,i)=>ctx.fillText(line,x+17,y+15+i*26));
+
+    let currentY=y+18+titleLines.length*27+10;
+    ctx.font=bodyFont;
+    wrapped.forEach(line=>{
+      ctx.fillText(line,x+18,currentY);
+      currentY+=24;
+    });
+    ctx.restore();
+  }
+
+  function drawCurvedCallout(text,x,y,targetX,targetY){
+    ctx.save();
+    ctx.font='800 20px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle="#6a231f";
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    ctx.fillText(text,x,y);
+
+    const startX=x;
+    const startY=y+15;
+    const cp1X=x+34;
+    const cp1Y=y+26;
+    const cp2X=targetX-38;
+    const cp2Y=targetY-36;
+    ctx.strokeStyle="#8a2f2a";
+    ctx.fillStyle="#8a2f2a";
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.moveTo(startX,startY);
+    ctx.bezierCurveTo(cp1X,cp1Y,cp2X,cp2Y,targetX,targetY);
+    ctx.stroke();
+
+    const t=.98;
+    const dx=3*(1-t)*(1-t)*(cp1X-startX)+6*(1-t)*t*(cp2X-cp1X)+3*t*t*(targetX-cp2X);
+    const dy=3*(1-t)*(1-t)*(cp1Y-startY)+6*(1-t)*t*(cp2Y-cp1Y)+3*t*t*(targetY-cp2Y);
+    const angle=Math.atan2(dy,dx);
+    const head=12;
+    ctx.beginPath();
+    ctx.moveTo(targetX,targetY);
+    ctx.lineTo(targetX-head*Math.cos(angle-Math.PI/7),targetY-head*Math.sin(angle-Math.PI/7));
+    ctx.lineTo(targetX-head*Math.cos(angle+Math.PI/7),targetY-head*Math.sin(angle+Math.PI/7));
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawVectorSymbol(x,y,color="#6a231f"){
+    ctx.save();
+    ctx.fillStyle=color;
+    ctx.strokeStyle=color;
+    ctx.font='italic 800 26px Georgia, "Times New Roman", serif';
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    ctx.fillText("F",x,y+5);
+    ctx.lineWidth=2.4;
+    ctx.beginPath();
+    ctx.moveTo(x-12,y-14);
+    ctx.lineTo(x+12,y-14);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x+12,y-14);
+    ctx.lineTo(x+6,y-19);
+    ctx.lineTo(x+7,y-9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawForceIntro(g){
+    drawSimpleHand(g.bobX-104,g.bobY,1);
+    drawVectorArrow(g.bobX-77,g.bobY,g.bobX-12,g.bobY,"",{line:"#a83b34",lineWidth:7,head:17});
+    drawCurvedCallout("fuerza",g.bobX-75,g.bobY-104,g.bobX-37,g.bobY-4);
+    drawConceptPanel("Fuerza",["Magnitud utilizada para medir la interacción entre cuerpos."]);
+  }
+
+  function drawForceVectorVisual(g){
+    drawSimpleHand(g.bobX-104,g.bobY,1);
+    drawVectorArrow(g.bobX-77,g.bobY,g.bobX-12,g.bobY,"",{line:"#a83b34",lineWidth:6,head:16});
+    drawVectorSymbol(g.bobX-43,g.bobY-47);
+    drawConceptPanel("La fuerza es una magnitud vectorial",[
+      "módulo: valor numérico",
+      "Dirección: inclinación de la línea donde se representa la fuerza",
+      "sentido: hacia donde apunta la saeta"
+    ]);
+  }
+
+  function drawEqualForceMasses(){
+    const cx=W*.50;
+    const smallY=H*.29;
+    const largeY=H*.62;
+    const arrowLength=clamp(W*.15,105,155);
+
+    ctx.save();
+    ctx.fillStyle="#6f777b";
+    ctx.strokeStyle="#303638";
+    ctx.lineWidth=2.4;
+
+    ctx.beginPath();
+    ctx.arc(cx,smallY,24,0,Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+    drawVectorArrow(cx-arrowLength-34,smallY,cx-34,smallY,"",{line:"#a83b34",lineWidth:8,head:18});
+
+    ctx.font='800 18px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    ctx.fillStyle="#39271e";
+    ctx.fillText("menor masa inercial      menor oposición",cx,smallY+66);
+
+    ctx.beginPath();
+    ctx.arc(cx,largeY,45,0,Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+    drawVectorArrow(cx-arrowLength-57,largeY,cx-57,largeY,"",{line:"#a83b34",lineWidth:8,head:18});
+    ctx.fillStyle="#39271e";
+    ctx.fillText("mayor masa inercial      mayor oposición",cx,largeY+82);
+    ctx.restore();
+  }
+
+  function drawNewtonVisual(now,law){
+    const elapsed=(now-conceptState.startedAt)/1000;
+    const baseY=H*.66;
+
+    if(law===1){
+      const left=W*.13;
+      const right=W*.87;
+      const travel=right-left;
+      const p=(elapsed/7)%1;
+      const x=left+p*travel;
+      const forcePhase=elapsed<6;
+
+      ctx.save();
+      ctx.strokeStyle="rgba(70,55,42,.38)";
+      ctx.lineWidth=3;
+      ctx.beginPath();
+      ctx.moveTo(W*.10,baseY+28);
+      ctx.lineTo(W*.90,baseY+28);
+      ctx.stroke();
+      ctx.fillStyle="#5d6970";
+      ctx.beginPath();
+      ctx.arc(x,baseY,24,0,Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle="#303638";
+      ctx.lineWidth=2;
+      ctx.stroke();
+
+      if(forcePhase){
+        drawVectorArrow(x-34,baseY,x-108,baseY,"fᵣ",{line:"#b33630",labelSide:-1,labelOffset:34,lineWidth:6,head:16});
+        drawVectorArrow(x+34,baseY,x+110,baseY,"fuerza",{line:"#1f2528",labelSide:-1,labelOffset:34,lineWidth:6,head:16});
+      }else{
+        ctx.font='800 20px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign="center";
+        ctx.textBaseline="middle";
+        ctx.fillStyle="#3b2a20";
+        ctx.fillText("Como no hay fuerzas, el cuerpo se mueve con velocidad constante.",W*.50,H*.82);
+      }
+      ctx.restore();
+    }else if(law===2){
+      const p=(elapsed/5)%1;
+      const x=lerp(W*.22,W*.78,p);
+      const y=H*.72-4*H*.18*p*(1-p);
+
+      ctx.save();
+      ctx.strokeStyle="rgba(70,55,42,.42)";
+      ctx.lineWidth=2.5;
+      ctx.setLineDash([4,8]);
+      ctx.beginPath();
+      for(let i=0;i<=50;i++){
+        const q=i/50;
+        const tx=lerp(W*.22,W*.78,q);
+        const ty=H*.72-4*H*.18*q*(1-q);
+        if(i===0) ctx.moveTo(tx,ty); else ctx.lineTo(tx,ty);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle="#5d6970";
+      ctx.beginPath();
+      ctx.arc(x,y,23,0,Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle="#303638";
+      ctx.lineWidth=2;
+      ctx.stroke();
+      drawVectorArrow(x,y+25,x,y+104,"fuerza resultante",{line:"#a83b34",labelSide:-1,labelOffset:42,lineWidth:6,head:16});
+      ctx.restore();
+    }else{
+      const x=W*.53;
+      drawSimpleHand(x-115,baseY,1.05);
+      ctx.save();
+      ctx.fillStyle="#667176";
+      ctx.beginPath();
+      ctx.arc(x,baseY,30,0,Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+      drawVectorArrow(x-42,baseY,x-5,baseY,"mano sobre esfera",{line:"#a83b34",labelSide:-1,labelOffset:42});
+      drawVectorArrow(x-52,baseY,x-96,baseY,"esfera sobre mano",{line:"#2f8f4e",labelSide:1,labelOffset:42});
+    }
+  }
+
+  function drawEarthField(){
+    const earthX=W*.77;
+    const earthY=H*.87;
+    ctx.save();
+    ctx.globalAlpha=.92;
+    ctx.fillStyle="#496f91";
+    ctx.beginPath(); ctx.arc(earthX,earthY,62,Math.PI,Math.PI*2); ctx.fill();
+    ctx.strokeStyle="rgba(70,105,145,.32)";
+    ctx.lineWidth=2;
+    for(let r=85;r<=165;r+=28){ ctx.beginPath(); ctx.arc(earthX,earthY,r,Math.PI*1.12,Math.PI*1.88); ctx.stroke(); }
+    ctx.fillStyle="#31593b";
+    ctx.beginPath(); ctx.ellipse(earthX-18,earthY-21,18,9,-.3,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  const airParticles=[];
+  let lastAirUpdate=performance.now();
+
+  function ensureAirParticles(count=520){
+    while(airParticles.length<count){
+      airParticles.push({
+        x:Math.random(),
+        y:Math.random(),
+        vx:(Math.random()-.5)*.085,
+        vy:(Math.random()-.5)*.085,
+        r:1.6+Math.random()*2.2
+      });
+    }
+  }
+
+  function drawAirParticles(now){
+    ensureAirParticles(Math.round(clamp((W*H)/1500,420,720)));
+    const dt=playbackState.paused ? 0 : clamp((now-lastAirUpdate)/1000,0,.05);
+    lastAirUpdate=now;
+    const left=.015;
+    const right=.985;
+    const top=.035;
+    const bottom=.87;
+
+    ctx.save();
+    ctx.fillStyle="rgba(73,126,159,.56)";
+    for(const particle of airParticles){
+      if(dt>0){
+        particle.vx=clamp(particle.vx+(Math.random()-.5)*.19*dt,-.12,.12);
+        particle.vy=clamp(particle.vy+(Math.random()-.5)*.19*dt,-.12,.12);
+        particle.x+=particle.vx*dt;
+        particle.y+=particle.vy*dt;
+        if(particle.x<left){ particle.x=right; particle.vx=Math.abs(particle.vx); }
+        if(particle.x>right){ particle.x=left; particle.vx=-Math.abs(particle.vx); }
+        if(particle.y<top){ particle.y=bottom; particle.vy=Math.abs(particle.vy); }
+        if(particle.y>bottom){ particle.y=top; particle.vy=-Math.abs(particle.vy); }
+      }
+      ctx.beginPath();
+      ctx.arc(particle.x*W,particle.y*H,particle.r,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawEquilibriumMarker(g){
+    const equilibriumX=g.pivotX;
+    const equilibriumY=g.pivotY+g.length;
+    ctx.save();
+    ctx.strokeStyle="rgba(116,47,42,.78)";
+    ctx.lineWidth=2.5;
+    ctx.setLineDash([3,9]);
+    ctx.lineCap="round";
+    ctx.beginPath();
+    ctx.moveTo(equilibriumX,g.pivotY+8);
+    ctx.lineTo(equilibriumX,equilibriumY+18);
+    ctx.stroke();
+    ctx.restore();
+    drawTrajectoryCallout(W*.075,H*.61,equilibriumX,equilibriumY,"Posición de equilibrio",{gap:14});
+  }
+
+  function drawEnergyBars(theta){
+    const amplitude=.34;
+    const maximumPotential=1-Math.cos(amplitude);
+    const potential=clamp((1-Math.cos(Math.abs(theta)))/maximumPotential,0,1);
+    const kinetic=1-potential;
+    const x=W*.70;
+    const y=H*.075;
+    const width=W*.255;
+    const height=13;
+    const rowGap=47;
+    const rows=[
+      {label:"Energía mecánica",fraction:1,color:"#b43b34"},
+      {label:"Energía potencial",fraction:potential,color:"#286fa8"},
+      {label:"Energía cinética",fraction:kinetic,color:"#2f8f4e"}
+    ];
+
+    ctx.save();
+    ctx.textAlign="left";
+    ctx.textBaseline="bottom";
+    ctx.font='800 15px "Segoe UI", Arial, sans-serif';
+    rows.forEach((row,index)=>{
+      const rowY=y+index*rowGap;
+      ctx.fillStyle=row.color;
+      ctx.fillText(row.label,x,rowY);
+      roundedRect(x,rowY+7,width,height,6,"rgba(255,255,255,.58)","rgba(57,42,31,.28)",1);
+      const fillWidth=Math.max(row.fraction>0 ? 4 : 0,width*row.fraction);
+      if(fillWidth>0) roundedRect(x,rowY+7,fillWidth,height,6,row.color,null,0);
+    });
+    ctx.restore();
+  }
+
+  function drawConceptVisuals(now){
+    const mode=conceptState.mode;
+    if(mode==="none") return;
+    const g=pendulumGeometry();
+    const elapsed=(now-conceptState.startedAt)/1000;
+
+    if(mode==="conceptPause"){
+      drawConceptPanel("Se necesita precisar:",[
+        "Concepto de fuerza",
+        "Definición de masa inercial",
+        "¿Qué es la energía?",
+        "¿Qué es un sistema?"
+      ]);
+    }else if(mode==="forceIntro"){
+      drawForceIntro(g);
+    }else if(mode==="forceVector"){
+      drawForceVectorVisual(g);
+    }else if(mode==="mass"){
+      drawEqualForceMasses();
+    }else if(mode==="newton1"){
+      drawNewtonVisual(now,1);
+    }else if(mode==="newton2"){
+      drawNewtonVisual(now,2);
+    }else if(mode==="newton3"){
+      drawNewtonVisual(now,3);
+    }else if(mode==="energy"){
+      const glow=ctx.createRadialGradient(g.bobX,g.bobY,8,g.bobX,g.bobY,92);
+      glow.addColorStop(0,"rgba(244,200,90,.55)");
+      glow.addColorStop(1,"rgba(244,200,90,0)");
+      ctx.fillStyle=glow;
+      ctx.beginPath();
+      ctx.arc(g.bobX,g.bobY,92,0,Math.PI*2);
+      ctx.fill();
+      drawConceptPanel("Energía",["Propiedad que poseen los cuerpos", "Una palabra familiar, pero no agotada por una definición"]);
+    }else if(mode==="system"){
+      drawEarthField();
+      ctx.save();
+      ctx.strokeStyle="#a83b34";
+      ctx.lineWidth=3;
+      ctx.setLineDash([7,7]);
+      ctx.beginPath();
+      ctx.ellipse((g.pivotX+g.bobX)/2,(g.pivotY+g.bobY)/2,100,g.length*.62,0,0,Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+      drawConceptPanel("Sistema elegido",["Esfera", "Hilo", "Tierra e interacción gravitatoria"]);
+    }else if(mode==="work"){
+      drawSimpleHand(g.bobX-100,g.bobY,1);
+      drawVectorArrow(g.bobX-75,g.bobY,g.bobX-20,g.bobY,"fuerza del agente",{line:"#a83b34",labelSide:-1,labelOffset:42});
+      drawConceptPanel("Trabajo",["Transferencia de energía producida", "por una fuerza durante un cambio de posición"]);
+    }else if(mode==="forces" || mode==="equilibrium"){
+      drawAirParticles(now);
+      const theta=g.theta;
+
+      drawVectorArrow(g.bobX,g.bobY,g.bobX,g.bobY+95,"",{line:"#a83b34",lineWidth:5,head:15});
+      drawMgVectorLabel(g.bobX+39,g.bobY+49);
+
+      const tensionEndX=g.bobX-82*Math.sin(theta);
+      const tensionEndY=g.bobY-82*Math.cos(theta);
+      drawVectorArrow(g.bobX,g.bobY,tensionEndX,tensionEndY,"",{line:"#2f8f4e",lineWidth:5,head:15});
+      drawTVectorLabel((g.bobX+tensionEndX)/2-31,(g.bobY+tensionEndY)/2);
+
+      // θ(t)=A cos(ωt). La fuerza resistente apunta siempre en sentido
+      // contrario a la velocidad tangencial de la esfera.
+      const thetaDot=-.27*1.15*Math.sin(1.15*elapsed);
+      const tangentX=Math.cos(theta);
+      const tangentY=-Math.sin(theta);
+      const frictionSign=Math.abs(thetaDot)<1e-4
+        ? (Math.sin(1.15*elapsed)>=0 ? 1 : -1)
+        : -Math.sign(thetaDot);
+      drawVectorArrow(
+        g.bobX,g.bobY,
+        g.bobX+frictionSign*72*tangentX,
+        g.bobY+frictionSign*72*tangentY,
+        "fᵣ",
+        {line:"#547f9a",labelSide:frictionSign>0?-1:1,labelOffset:30,alongOffset:24,lineWidth:5,head:15}
+      );
+      if(mode==="equilibrium") drawEquilibriumMarker(g);
+    }else if(mode==="energyTransform"){
+      const leftX=g.pivotX-g.length*Math.sin(.34), rightX=g.pivotX+g.length*Math.sin(.34);
+      const highY=g.pivotY+g.length*Math.cos(.34), lowY=g.pivotY+g.length;
+      ctx.save();
+      ctx.globalAlpha=.30;
+      ctx.fillStyle="#6d767a";
+      ctx.beginPath(); ctx.arc(leftX,highY,12,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(rightX,highY,12,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(g.pivotX,lowY,12,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+      drawTrajectoryCallout(W*.045,H*.27,leftX,highY,"Energía potencial máxima",{gap:15});
+      drawTrajectoryCallout(W*.29,H*.68,g.pivotX,lowY,"Energía cinética máxima",{gap:16});
+      drawEnergyBars(g.theta);
+    }else if(mode==="damping"){
+      drawAirParticles(now);
+      drawConceptPanel("Movimiento real de un péndulo",["El aire y el rozamiento realizan trabajo resistente", "La energía mecánica se transfiere al entorno"]);
+    }else if(mode==="variables"){
+      const originalLength=g.length;
+      const baseOmega=1.08;
+      const comparisonElapsed=conceptState.variableRunning
+        ? (now-conceptState.variableMotionStartedAt)/1000
+        : 0;
+      const pivY=g.pivotY;
+      const positions=[W*.68,W*.80,W*.91];
+      const lengths=[originalLength*.82,originalLength*.56,originalLength*.18];
+      const labels=["L₁","L₂","L₃"];
+      const drawMini=(px,len,index)=>{
+        const omega=baseOmega*Math.sqrt(originalLength/len);
+        const theta=.24*Math.cos(omega*comparisonElapsed);
+        const bx=px+len*Math.sin(theta);
+        const by=pivY+len*Math.cos(theta);
+        ctx.save();
+        ctx.strokeStyle="#35383a";
+        ctx.lineWidth=1.8;
+        ctx.beginPath();
+        ctx.moveTo(px,pivY);
+        ctx.lineTo(bx,by);
+        ctx.stroke();
+        ctx.fillStyle="#687176";
+        ctx.beginPath();
+        ctx.arc(bx,by,8,0,Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle="#24282a";
+        ctx.beginPath();
+        ctx.arc(px,pivY,3.5,0,Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+        drawMathLabel(labels[index],px,pivY-25,{font:'700 16px "Segoe UI", Arial, sans-serif'});
+      };
+      for(let i=0;i<conceptState.variableCount;i++) drawMini(positions[i],lengths[i],i);
+      drawMathLabel("menor longitud  →  menor período",W*.78,H*.76,{font:'800 17px "Segoe UI", Arial, sans-serif'});
+    }else if(mode==="freeBody"){
+      const theta=g.theta;
+      const stage=conceptState.diagramStage;
+      const mgLength=112;
+      const radialLength=mgLength*Math.cos(theta);
+      const tangentialLength=mgLength*Math.sin(theta);
+      const inwardX=-Math.sin(theta);
+      const inwardY=-Math.cos(theta);
+      const outwardX=Math.sin(theta);
+      const outwardY=Math.cos(theta);
+      const towardEqX=-Math.cos(theta);
+      const towardEqY=Math.sin(theta);
+
+      // Referencia vertical y ángulo θ.
+      ctx.save();
+      ctx.strokeStyle="rgba(60,39,29,.45)";
+      ctx.lineWidth=1.8;
+      ctx.setLineDash([5,6]);
+      ctx.beginPath();
+      ctx.moveTo(g.pivotX,g.pivotY);
+      ctx.lineTo(g.pivotX,g.pivotY+78);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.strokeStyle="#6a231f";
+      ctx.beginPath();
+      ctx.arc(g.pivotX,g.pivotY,38,Math.PI/2-theta,Math.PI/2);
+      ctx.stroke();
+      ctx.font='italic 700 18px Georgia, "Times New Roman", serif';
+      ctx.fillStyle="#6a231f";
+      ctx.fillText("θ",g.pivotX+18,g.pivotY+43);
+      ctx.restore();
+
+      if(stage>=1){
+        const mgTipY=g.bobY+mgLength;
+        drawVectorArrow(g.bobX,g.bobY,g.bobX,mgTipY,"",{line:"#a83b34",lineWidth:5,head:15});
+        drawMgVectorLabel(g.bobX-18,mgTipY+14,{background:false,color:"#7e2925"});
+      }
+      if(stage>=2){
+        const tx=g.bobX+inwardX*radialLength;
+        const ty=g.bobY+inwardY*radialLength;
+        drawVectorArrow(g.bobX,g.bobY,tx,ty,"",{line:"#2f8f4e",lineWidth:5,head:15});
+        drawTVectorLabel(tx+inwardX*25,ty+inwardY*25,{background:false,color:"#226d3a"});
+      }
+      if(stage>=3){
+        const rx=g.bobX+outwardX*radialLength;
+        const ry=g.bobY+outwardY*radialLength;
+        const sx=g.bobX+towardEqX*tangentialLength;
+        const sy=g.bobY+towardEqY*tangentialLength;
+        drawVectorArrow(g.bobX,g.bobY,rx,ry,"",{line:"#7a5aa6",lineWidth:4,head:13});
+        drawMathLabel("mg cos θ",rx+outwardX*34,ry+outwardY*24-12,{color:"#5a3d7d",background:null});
+        drawVectorArrow(g.bobX,g.bobY,sx,sy,"",{line:"#d27b25",lineWidth:4,head:13});
+        drawMathLabel("mg sen θ",sx+towardEqX*48,sy+towardEqY*48,{color:"#8c4c12",background:null});
+      }
+      if(stage>=4){
+        drawMathLabel("Diagrama de cuerpo libre",W*.50,H*.78,{font:'800 19px "Segoe UI", Arial, sans-serif'});
+      }
+    }else if(mode==="idealize" || mode==="ideal"){
+      if(conceptState.idealProgress<.75) drawAirParticles(now);
+      const p=conceptState.idealProgress;
+      drawConceptPanel("Idealizaciones",[
+        `${p>.12?"✓":"○"} sin resistencia del aire`,
+        `${p>.28?"✓":"○"} sin rozamiento en el soporte`,
+        `${p>.46?"✓":"○"} masa concentrada en un punto`,
+        `${p>.63?"✓":"○"} hilo sin masa e inextensible`,
+        `${p>.80?"✓":"○"} punto de suspensión fijo`,
+        `${p>.94?"✓":"○"} campo gravitatorio uniforme`
+      ]);
+    }
+  }
+
+  function setEquilibriumHint(active){
+    equilibriumHint.active=!!active;
+  }
+
+  function drawLampEquilibriumHint(){
+    if(!equilibriumHint.active) return;
+
+    const p=modelState.progress;
+    const initialPivotX=W*.5;
+    const initialPivotY=28;
+    const finalPivotX=W*.54;
+    const finalPivotY=H*.24;
+    const initialLength=Math.min(H*.43,W*.34);
+    const finalLength=Math.min(H*.36,W*.29);
+    const eased=easeInOutCubic(p);
+    const pivotX=lerp(initialPivotX,finalPivotX,eased);
+    const pivotY=lerp(initialPivotY,finalPivotY,eased);
+    const length=lerp(initialLength,finalLength,eased);
+    const equilibriumX=pivotX;
+    const equilibriumY=pivotY+length;
+
+    ctx.save();
+    ctx.strokeStyle="rgba(168,59,52,.88)";
+    ctx.lineWidth=3;
+    ctx.setLineDash([6,7]);
+    ctx.beginPath();
+    ctx.moveTo(equilibriumX,pivotY+10);
+    ctx.lineTo(equilibriumX,equilibriumY+18);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle="rgba(168,59,52,.92)";
+    ctx.beginPath();
+    ctx.arc(equilibriumX,equilibriumY,7,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    drawTrajectoryCallout(W*.06,H*.58,equilibriumX,equilibriumY,"Posición de equilibrio",{gap:14});
+  }
+
+  function draw(){
+    const now=performance.now();
+    updateModelTransformation(now);
+    updateConceptState(now);
+    ctx.clearRect(0,0,W,H);
+    drawRoom();
+    const hidePendulum=["mass","newton1","newton2"].includes(conceptState.mode);
+    if(!hidePendulum) drawLamp(now);
+    drawLampEquilibriumHint();
+    drawComparison(now);
+    drawConceptVisuals(now);
+
+    if(playbackState.controlsSuppressed){
+      playbackControls.style.display="none";
+    }else if(running && (playbackState.controlsUnlocked || presentationElapsedMs()>=120000)){
+      playbackState.controlsUnlocked=true;
+      playbackControls.style.display="flex";
+    }
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+
+  /* =========================================================
+     PIZARRA
+     ========================================================= */
+  function clearBoard(){
+    boardText.innerHTML="";
+  }
+
+  function addBoard(text,{question=false}={}){
+    const item=document.createElement("div");
+    item.className=`boardItem${question?" boardQuestion":""}`;
+    item.innerHTML=text;
+    boardText.appendChild(item);
+    boardText.scrollTop=boardText.scrollHeight;
+  }
+
+  function showSubtitle(text){
+    subtitle.innerHTML=text;
+    subtitle.classList.add("visible");
+  }
+
+  function hideSubtitle(){
+    subtitle.classList.remove("visible");
+  }
+
+  /* =========================================================
+     SELECCIÓN DE VOZ
+     La Web Speech API solo puede usar las voces instaladas en el equipo.
+     Se prioriza: masculina es-CO → cualquier es-CO → masculina en español.
+     ========================================================= */
+  function chooseVoice(){
+    const voices=speechSynthesis.getVoices();
+    if(!voices.length) return null;
+
+    const maleNames=[
+      "andrés","andres","carlos","diego","felipe","jorge","juan","mateo",
+      "miguel","pablo","sebastián","sebastian","alejandro","antonio",
+      "enrique","raul","raúl","alvaro","álvaro","dario","darío","male","man"
+    ];
+
+    const spanish=voices.filter(v=>/^es(?:-|_)/i.test(v.lang)||/^es$/i.test(v.lang));
+    const isMale=v=>maleNames.some(name=>(v.name||"").toLowerCase().includes(name));
+    const isColombian=v=>/es[-_]?CO/i.test(v.lang||"")||/colombia|colombian/i.test(v.name||"");
+
+    return spanish.find(v=>isColombian(v)&&isMale(v))
+      || spanish.find(isColombian)
+      || spanish.find(isMale)
+      || spanish[0]
+      || voices[0];
+  }
+
+  function updateVoiceInfo(){
+    selectedVoice=chooseVoice();
+    if(selectedVoice){
+      voiceInfo.textContent=`Voz seleccionada: ${selectedVoice.name} (${selectedVoice.lang})`;
+    }else{
+      voiceInfo.textContent="El navegador seleccionará una voz española al iniciar.";
+    }
+  }
+
+  speechSynthesis.onvoiceschanged=updateVoiceInfo;
+  updateVoiceInfo();
+
+  async function waitForVoices(){
+    for(let i=0;i<20;i++){
+      if(speechSynthesis.getVoices().length){
+        updateVoiceInfo();
+        return;
+      }
+      await sleep(150);
+    }
+  }
+
+  /* =========================================================
+     AUDIO Y LOCUCIÓN
+     ========================================================= */
+  async function playAudioSafely(){
+    try{
+      const p=bgm.play();
+      if(p && typeof p.then==="function") await p.catch(()=>{});
+    }catch(error){
+      console.warn("No fue posible reproducir la música:",error);
+    }
+  }
+
+  function fadeMusicRaw(target,duration=600){
+    return new Promise((resolve,reject)=>{
+      const token=playbackState.activeToken;
+      const from=Number.isFinite(bgm.volume)?bgm.volume:MUSIC_BACKGROUND;
+      const start=activeClock();
+      const safeTarget=clamp(target,0,1);
+
+      function step(){
+        if(token!==runToken) return reject(new RunCancelled());
+        const p=clamp((activeClock()-start)/duration,0,1);
+        bgm.volume=clamp(from+(safeTarget-from)*p,0,1);
+        if(p<1) requestAnimationFrame(step);
+        else resolve();
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  function fadeMusic(target,duration=600){
+    return timelineAction(`fundido:${duration}`,()=>fadeMusicRaw(target,duration));
+  }
+
+  function musicHigh(duration=3000){
+    return timelineAction(`música-alta:${duration}`,async()=>{
+      await playAudioSafely();
+      await fadeMusic(MUSIC_HIGH,450);
+      await sleep(duration);
+      await fadeMusic(MUSIC_BACKGROUND,650);
+    });
+  }
+
+  function speakRawInner(text,{rate=.80,pitch=.82,volume=1}={}){
+    return new Promise(resolve=>{
+      if(!text.trim()) return resolve();
+
+      const utter=new SpeechSynthesisUtterance(text);
+      selectedVoice=chooseVoice()||selectedVoice;
+      if(selectedVoice) utter.voice=selectedVoice;
+      utter.lang=selectedVoice?.lang||"es-CO";
+      utter.rate=rate;
+      utter.pitch=pitch;
+      utter.volume=volume;
+
+      let finished=false;
+      const estimated=Math.max(9000,text.trim().split(/\s+/).length*850+5000);
+      const started=activeClock();
+      let keepAlive=null;
+      let watchdog=null;
+
+      function finish(){
+        if(finished) return;
+        finished=true;
+        clearInterval(keepAlive);
+        clearInterval(watchdog);
+        resolve();
+      }
+
+      utter.onend=finish;
+      utter.onerror=finish;
+      keepAlive=setInterval(()=>{
+        if(!playbackState.paused && speechSynthesis.paused) speechSynthesis.resume();
+      },900);
+      watchdog=setInterval(()=>{
+        if(playbackState.activeToken!==runToken || activeClock()-started>=estimated) finish();
+      },250);
+
+      try{
+        if(!playbackState.paused) speechSynthesis.resume();
+        speechSynthesis.speak(utter);
+      }catch(error){
+        console.warn("No fue posible iniciar la locución:",error);
+        finish();
+      }
+    });
+  }
+
+  function speakRaw(text,options={}){
+    return timelineAction("locución-directa",()=>speakRawInner(text,options));
+  }
+
+  function narrate(text,options={}){
+    return timelineAction("narración",async()=>{
+      const token=runToken;
+      const {subtitleText, ...voiceOptions}=options;
+      await fadeMusic(MUSIC_BACKGROUND,450);
+      if(token!==runToken) throw new RunCancelled();
+      showSubtitle(subtitleText ?? text);
+      await speakRaw(text,voiceOptions);
+      hideSubtitle();
+    });
+  }
+
+  async function highThenNarrate(text,highMs,options={}){
+    await musicHigh(highMs);
+    await sleep(1000);
+    await narrate(text,options);
+  }
+
+  /* =========================================================
+     GUION: PRIMERA TERCERA PARTE
+     ========================================================= */
+  async function runPresentation({seekTargetMs=0,replayRecords=[],keepControls=false}={}){
+    if(running) return;
+    running=true;
+    runToken++;
+    const token=runToken;
+    prepareTimeline(token,{seekTargetMs,replayRecords});
+    playbackState.controlsUnlocked=keepControls || seekTargetMs>=120000;
+
+    startBtn.disabled=true;
+    overlay.style.display="none";
+    endControls.style.display="none";
+    playbackControls.style.display=playbackState.controlsUnlocked ? "flex" : "none";
+    pauseBtn.textContent="PAUSAR";
+    clearBoard();
+    speechSynthesis.cancel();
+    resetVisualContinuation();
+    startLampCycle();
+    sceneLabel.classList.add("visible");
+
+    try{
+      await waitForVoices();
+      bgm.currentTime=0;
+      bgm.volume=MUSIC_HIGH;
+      await playAudioSafely();
+
+      // Entrada musical antes de la primera voz.
+      await sleep(2600);
+      await fadeMusic(MUSIC_BACKGROUND,700);
+      await sleep(750);
+
+      // Los alargamientos se usan únicamente en la locución; el letrero conserva la escritura normal.
+      await fadeMusic(MUSIC_BACKGROUND,450);
+      showSubtitle("¡Hola, qué tal!");
+      await speakRaw("¡Holaaaa!",{rate:.62,pitch:.98,volume:1});
+      await sleep(220);
+      await speakRaw("¿QUÉ tallll?",{rate:.54,pitch:1.08,volume:1});
+      hideSubtitle();
+      addBoard("<strong>Propósito:</strong> aprender a pensar bien para hablar bien y, finalmente, actuar bien.");
+      await narrate(
+        "Los invito a recorrer el peligroso y fascinante sendero por el que aprendemos a pensar:. " +
+        "Peligroso, porque siempre lo es subirse a una lámpara que cuelga del techo o intentar montarse en una onda;. " +
+        "fascinante, porque, si logramos recorrerlo, habremos aprendido a pensar bien, para hablar bien, para, finalmente actuar bien.",
+           
+        {subtitleText:"Aprender a pensar bien para hablar bien y actuar bien.",rate:.79,pitch:.80,volume:1}
+      );
+
+      if(token!==runToken) return;
+      await musicHigh(3000);
+      await sleep(1000);
+
+      addBoard("Una pregunta demasiado amplia puede producir una infinidad de respuestas.",{question:true});
+      await narrate("¿QUÉ estamos viendo?",{subtitleText:"¿Qué estamos viendo?",rate:.60,pitch:1.08,volume:1});
+      await musicHigh(2000);
+      await sleep(1000);
+
+      addBoard("<strong>No responder de inmediato.</strong> Primero hay que reconocer qué permite preguntar la escena.");
+      await narrate(
+        "Necesariamente, no debe haber respuestas de inmediato, porque al observar el escenario pueden distinguirse numerosos elementos.",
+        {subtitleText:"La escena permite muchas respuestas posibles.",rate:.78,pitch:.80}
+      );
+
+      addBoard("Observar no es únicamente «mirar»: también intervienen los demás sentidos.");
+      await narrate(
+        "Pero, además, no todo se observa con los ojos. También podemos percibir sonidos y olores, y experimentar otras sensaciones, como el calor o el frescor.",
+        {subtitleText:"Observar también implica oír, oler y sentir.",rate:.78,pitch:.80}
+      );
+
+      addBoard("Con los ojos puede distinguirse el objeto, su color, su tamaño, cómo está iluminado y cómo es su entorno.");
+      await narrate(
+        "Incluso si nos limitáramos a mirar, encontraríamos numerosos detalles: la lámpara, su color, su tamaño, si está encendida, si el sostén es corto, si el techo es blanco; en fin, una gran variedad de posibles respuestas.",
+        {subtitleText:"Mirar la escena no basta: aparecen demasiados detalles.",rate:.78,pitch:.80}
+      );
+
+      await narrate("Reflexionemos.",{subtitleText:"Pausa para pensar.",rate:.66,pitch:.76});
+      await musicHigh(3000);
+      await sleep(1000);
+
+      addBoard("<strong>Idea clave:</strong> No hay respuestas malas cuando la pregunta está mal formulada.");
+      await narrate(
+        "No hay respuestas malas cuando la pregunta está mal formulada.",
+        {subtitleText:"No hay respuestas malas cuando la pregunta está mal formulada.",rate:.73,pitch:.78}
+      );
+      await narrate(
+        "¡SÍ, señores! ¡No hay respuestas malas cuando la pregunta está mal formulada!",
+        {subtitleText:"Preguntar bien es indispensable para comprender.",rate:.65,pitch:1.02,volume:1}
+      );
+
+      addBoard("Para comenzar a conocer un suceso, se deben formular preguntas que orienten la observación.");
+      await narrate(
+        "Por lo tanto, cuando se realiza la observación de cualquier suceso, para comenzar a conocerlo se deben realizar bien las preguntas.",
+        {subtitleText:"Conocer un suceso exige formular buenas preguntas.",rate:.77,pitch:.80}
+      );
+
+      // La "otra pausa" indicada en el guion.
+      await musicHigh(3000);
+      await sleep(1000);
+
+      addBoard("<strong>Nueva pregunta:</strong> Observe detenidamente: ¿cómo describiría el movimiento de la lámpara para comprenderlo con la mayor precisión posible?",{question:true});
+      sceneLabel.textContent = "Observe detenidamente: ¿cómo describiría el movimiento de la lámpara para comprenderlo con la mayor precisión posible?";
+      sceneLabel.classList.add("visible");
+      await narrate(
+        "Vamos a cambiar la pregunta: Observe detenidamente: ¿cómo describiría el movimiento de la lámpara para comprenderlo con la mayor precisión posible?",
+        {subtitleText:"Nueva pregunta: describir con precisión el movimiento de la lámpara.",rate:.72,pitch:.94}
+      );
+
+      addBoard("Ahora «mirar» es más que describir lo que ven los ojos, a eso le llamaremos «observar». Las respuestas pueden ser acertadas, parcialmente acertadas o desacertadas.");
+      await narrate(
+        "Ahora las respuestas pueden ser varias: algunas acertadas, otras acertadas a medias y otras desacertadas, porque la pregunta está bien hecha. Se quiere conocer, primero, cómo se mueve la lámpara y, cuando se haya comprendido que se mueve de forma diferente a otros cuerpos, comenzarán los por qué.",
+        {subtitleText:"Observar es más que mirar: buscamos una descripción correcta del movimiento.",rate:.77,pitch:.80}
+      );
+
+      // =====================================================
+      // DE LA DESCRIPCIÓN VISUAL AL MOVIMIENTO OSCILATORIO
+      // Esta primera parte termina justo antes del recordatorio
+      // de las leyes de Newton.
+      // =====================================================
+      addBoard("<strong>Primera aproximación:</strong> la lámpara tiene un movimiento de vaivén.");
+      await narrate(
+        "Al observarla con mayor detenimiento, descubrimos que se aleja hacia un lado, regresa, continúa hacia el lado contrario y vuelve nuevamente. En definitiva, va y viene: tiene un movimiento de vaivén.",
+        {subtitleText:"La lámpara va y viene alrededor de una posición central.",rate:.74,pitch:.82}
+      );
+
+      // Se compara con movimientos conocidos y se dejan visibles sus trayectorias
+      // mediante líneas de puntos.
+      setComparison("car",{trajectory:true});
+      await narrate(
+        "No se mueve como un cuerpo que sigue una trayectoria rectilínea.",
+        {subtitleText:"La trayectoria del carrito queda marcada con línea de puntos.",rate:.73,pitch:.82}
+      );
+      await sleep(2400);
+
+      setComparison("fall",{trajectory:true});
+      await narrate(
+        "Tampoco como un cuerpo que se suelta y cae verticalmente.",
+        {subtitleText:"La trayectoria del cuerpo que cae también queda marcada.",rate:.73,pitch:.82}
+      );
+      await sleep(2400);
+
+      setComparison("circle",{trajectory:true});
+      await narrate(
+        "Su trayectoria corresponde a un arco de circunferencia, pero esa descripción todavía no expresa que se mueve repetidamente de un lado a otro.",
+        {subtitleText:"La piedra atada al hilo deja marcada su trayectoria circunferencial.",rate:.73,pitch:.82}
+      );
+      await sleep(2600);
+      clearComparison();
+
+      boardTitle.textContent="MOVIMIENTO OSCILATORIO";
+      clearBoard();
+      addBoard("<strong>Movimiento oscilatorio:</strong> el cuerpo se desplaza repetidamente de un lado a otro alrededor de una posición de equilibrio.");
+      await narrate(
+        "Mi memoria me lleva a la época en que un profesor de física explicaba que, cuando un cuerpo se mueve repetidamente de un lado a otro alrededor de una posición de equilibrio, realiza un movimiento oscilatorio.",
+        {subtitleText:"Ese tipo de movimiento se llama movimiento oscilatorio.",rate:.73,pitch:.80}
+      );
+      await narrate(
+        "Ahora sí. Podemos describir, en una primera aproximación, el movimiento de la lámpara: es oscilatorio. Se desplaza repetidamente de un lado a otro, pasando por una posición central y alcanzando alternativamente dos posiciones extremas.",
+        {subtitleText:"La lámpara realiza un movimiento oscilatorio.",rate:.73,pitch:.80}
+      );
+
+      addBoard("<strong>Posición de equilibrio:</strong> es la posición central más baja, aquella hacia la que la lámpara tiende cuando pasa de un lado al otro.");
+      setEquilibriumHint(true);
+      await narrate(
+        "Llamaremos posición de equilibrio a la posición central más baja, la que corresponde al hilo vertical. Cuando la lámpara pasa por allí, sigue su recorrido hacia el lado contrario; y cuando se aleja de esa posición, termina regresando nuevamente hacia ella.",
+        {subtitleText:"La posición de equilibrio es la posición central más baja, con el hilo vertical.",rate:.72,pitch:.80}
+      );
+
+      setEquilibriumHint(false);
+      boardTitle.textContent="UNA NUEVA PREGUNTA";
+      clearBoard();
+      addBoard("<strong>Pregunta:</strong> ¿Cómo comenzó el movimiento?",{question:true});
+      sceneLabel.textContent="¿Cómo comenzó el movimiento?";
+      sceneLabel.classList.add("visible");
+      await narrate(
+        "Pero, ¿cómo comenzó el movimiento? Esa pregunta está mal formulada, porque podría responderse que comenzó desde velocidad cero, desde la derecha, desde la izquierda o incluso que comenzó fría. Hay muchas respuestas posibles y ninguna necesariamente nos dice lo que necesitamos saber.",
+        {subtitleText:"La pregunta «¿cómo comenzó?» está mal formulada.",rate:.73,pitch:.82}
+      );
+
+      addBoard("<strong>Reformulación:</strong> ¿Por qué comenzó a moverse?",{question:true});
+      sceneLabel.textContent="¿Por qué comenzó a moverse?";
+      await narrate(
+        "Reformulemos la pregunta: ¿por qué comenzó a moverse? Tenemos que seguir observando.",
+        {subtitleText:"¿Por qué comenzó a moverse?",rate:.70,pitch:.94}
+      );
+
+      // Forzamos un nuevo empuje para que la animación muestre una acción
+      // externa sobre la lámpara mientras se habla del viento.
+      lampMotion.active=true;
+      lampMotion.phase="push";
+      lampMotion.phaseStart=performance.now();
+      lampMotion.fromTheta=0;
+      lampMotion.theta=0;
+      lampMotion.showArrowThisPush=true;
+      lampMotion.arrowVisible=true;
+
+      addBoard("El aire que entra por la ventana actúa sobre la lámpara y la desplaza inicialmente hacia un lado.");
+      await narrate(
+        "Siento que entra aire por la ventana y la lámpara comienza a desplazarse. Parece que el viento la lleva inicialmente hacia un lado, alejándola de su posición vertical.",
+        {subtitleText:"El viento desvía la lámpara de su posición vertical.",rate:.73,pitch:.80}
+      );
+
+      await narrate(
+        "La respuesta no está solamente en lo que hemos visto ni solamente en el viento que hemos sentido, sino en relacionar ambos elementos con algunos recuerdos: las leyes de Newton. Necesitamos esas leyes para comprender por qué comenzó a moverse la lámpara.",
+        {subtitleText:"Para explicarlo, debemos relacionar la observación con las leyes de Newton.",rate:.73,pitch:.80}
+      );
+
+      addBoard("El viento actúa sobre la lámpara y cambia su estado de movimiento.");
+      await narrate(
+        "Sí. Comenzó a moverse porque el viento actúa sobre ella; la llevó desde el reposo hasta una nueva posición y, cuando dejó de actuar, la lámpara comenzó su movimiento oscilatorio.",
+        {subtitleText:"El viento cambia el estado de movimiento de la lámpara.",rate:.72,pitch:.80}
+      );
+
+      // CIERRE DE ESTA PARTE DEL LIBRO.
+      boardTitle.textContent="UN BREVE RECESO";
+      clearBoard();
+      clearComparison();
+      clearConceptMode();
+      sceneLabel.textContent="Un breve receso: recordemos las leyes de Newton";
+      sceneLabel.classList.add("visible");
+      addBoard("Antes de continuar con la observación de la lámpara, haremos un breve paréntesis para recordar las leyes de Newton.");
+      await narrate(
+        "Antes de continuar con la observación del movimiento de la lámpara, hagamos un breve paréntesis, un receso, para recordar las leyes de Newton que necesitaremos en lo que sigue.",
+        {subtitleText:"Hagamos un breve receso para recordar las leyes de Newton.",rate:.70,pitch:.80}
+      );
+
+      playbackState.controlsSuppressed=true;
+      playbackControls.style.display="none";
+      await fadeMusic(0,2200);
+      await sleep(350);
+      endControls.style.display="flex";
+
+    }catch(error){
+      if(!(error instanceof RunCancelled)) console.error("La presentación se interrumpió:",error);
+    }finally{
+      if(token===runToken){
+        running=false;
+        startBtn.disabled=false;
+        playbackState.paused=false;
+        pauseBtn.textContent="PAUSAR";
+      }
+    }
+  }
+
+  function launchPresentation(options={}){
+    activeRunPromise=runPresentation(options);
+    return activeRunPromise;
+  }
+
+  function shiftVisualTimes(delta){
+    lampMotion.phaseStart+=delta;
+    comparisonState.startedAt+=delta;
+    modelState.startedAt+=delta;
+    conceptState.startedAt+=delta;
+    lastAirUpdate+=delta;
+  }
+
+  async function togglePause(){
+    if(!running) return;
+    if(!playbackState.paused){
+      playbackState.paused=true;
+      playbackState.pauseStartedAt=performance.now();
+      speechSynthesis.pause();
+      bgm.pause();
+      pauseBtn.textContent="CONTINUAR";
+    }else{
+      const delta=performance.now()-playbackState.pauseStartedAt;
+      playbackState.totalPausedMs+=delta;
+      shiftVisualTimes(delta);
+      playbackState.paused=false;
+      playbackState.pauseStartedAt=0;
+      pauseBtn.textContent="PAUSAR";
+      speechSynthesis.resume();
+      await playAudioSafely();
+    }
+  }
+
+  function resetPresentation({hidePlayback=true}={}){
+    runToken++;
+    speechSynthesis.cancel();
+    hideSubtitle();
+    bgm.pause();
+    bgm.currentTime=0;
+    clearBoard();
+    boardTitle.textContent="OBSERVAR, PREGUNTAR Y DESCRIBIR";
+    endControls.style.display="none";
+    if(hidePlayback) playbackControls.style.display="none";
+    stopLampCycle();
+    resetVisualContinuation();
+    sceneLabel.textContent = "¿Qué ves?";
+    sceneLabel.classList.remove("visible");
+    playbackState.paused=false;
+    playbackState.pauseStartedAt=0;
+    playbackState.controlsSuppressed=false;
+    pauseBtn.textContent="PAUSAR";
+    running=false;
+  }
+
+  async function rewindOneMinute(){
+    if(!running || playbackState.rewindInProgress) return;
+    playbackState.rewindInProgress=true;
+
+    const currentElapsed=presentationElapsedMs();
+    const target=Math.max(0,currentElapsed-60000);
+    const replayRecords=playbackState.records.map(item=>({...item}));
+    const keepControls=playbackState.controlsUnlocked;
+
+    const previousRun=activeRunPromise;
+    runToken++;
+    speechSynthesis.cancel();
+    bgm.pause();
+    hideSubtitle();
+
+    try{ await previousRun; }catch(_error){}
+    running=false;
+    clearBoard();
+    boardTitle.textContent="OBSERVAR, PREGUNTAR Y DESCRIBIR";
+    stopLampCycle();
+    resetVisualContinuation();
+    sceneLabel.textContent="¿Qué ves?";
+    sceneLabel.classList.remove("visible");
+
+    playbackState.rewindInProgress=false;
+    await launchPresentation({seekTargetMs:target,replayRecords,keepControls});
+  }
+
+  startBtn.addEventListener("click",()=>launchPresentation());
+  pauseBtn.addEventListener("click",togglePause);
+  rewindBtn.addEventListener("click",rewindOneMinute);
+
+  repeatBtn.addEventListener("click",async()=>{
+    if(running) return;
+    resetPresentation();
+    await launchPresentation();
+  });
+
+  exitBtn.addEventListener("click",()=>{
+    resetPresentation();
+    overlay.style.display="flex";
+  });
+
+  bgm.addEventListener("error",()=>{
+    audioWarning.style.display="block";
+  });
+
+  window.addEventListener("beforeunload",()=>{
+    runToken++;
+    speechSynthesis.cancel();
+    bgm.pause();
+  });
+})();
+</script>
+</body>
+</html>

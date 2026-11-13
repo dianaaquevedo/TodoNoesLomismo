@@ -1,0 +1,2316 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Principio de superposición</title>
+
+  <style>
+    :root {
+      --rojo: #d21f2b;
+      --azul: #1267c7;
+      --amarillo: #f3c623;
+      --negro: #121212;
+      --gris-claro: #eef1f3;
+      --gris-medio: #b7bec4;
+      --verde-pizarra: #165b2a;
+      --verde-oscuro: #0b3819;
+      --blanco: #f8f8f4;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+      background: #111;
+    }
+
+    body {
+      display: grid;
+      grid-template-rows: 68px 1fr;
+    }
+
+    header {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 260px 0 24px;
+      color: #fff;
+      background:
+        linear-gradient(90deg, rgba(210,31,43,0.98) 0 13px, transparent 13px),
+        linear-gradient(180deg, #24272a, #111315);
+      border-bottom: 4px solid var(--amarillo);
+      box-shadow: 0 4px 14px rgba(0,0,0,.35);
+      z-index: 5;
+    }
+
+    h1 {
+      font-size: clamp(1.55rem, 2.4vw, 2.45rem);
+      letter-spacing: 0.02em;
+      text-align: center;
+      text-shadow: 0 2px 3px rgba(0,0,0,.45);
+    }
+
+    .brand {
+      position: absolute;
+      right: 20px;
+      top: 7px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ra-logo {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-size: 1.2rem;
+      color: #fff;
+      border: 3px solid #fff;
+      background:
+        radial-gradient(circle at 28% 28%, #f7d329 0 19%, transparent 20%),
+        conic-gradient(from 210deg, #d21f2b, #f3c623, #111, #d21f2b);
+      box-shadow: 0 0 0 2px #111, 0 3px 9px rgba(0,0,0,.45);
+    }
+
+    .brand-text {
+      color: #fff;
+      font-size: 0.72rem;
+      line-height: 1.05;
+      font-weight: 700;
+      width: 108px;
+    }
+
+    main {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 3fr 1fr;
+    }
+
+    #simulationPanel {
+      position: relative;
+      min-width: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 12%, rgba(255,255,255,.94), rgba(255,255,255,.18) 43%, transparent 67%),
+        repeating-linear-gradient(120deg, rgba(255,255,255,.12) 0 2px, rgba(135,142,148,.06) 2px 5px),
+        linear-gradient(135deg, #f5f6f7 0%, #cfd4d8 52%, #f3f5f6 100%);
+      border-right: 6px solid #111;
+    }
+
+    #simulationPanel::before,
+    #simulationPanel::after {
+      content: "";
+      position: absolute;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    #simulationPanel::before {
+      left: 0;
+      top: 0;
+      width: 11px;
+      height: 100%;
+      background: var(--rojo);
+    }
+
+    #simulationPanel::after {
+      right: 0;
+      top: 0;
+      width: 7px;
+      height: 100%;
+      background: var(--amarillo);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .scene-label {
+      position: absolute;
+      left: 34px;
+      top: 24px;
+      z-index: 3;
+      padding: 8px 15px;
+      border-radius: 7px;
+      border-left: 7px solid var(--rojo);
+      background: rgba(17,17,17,.88);
+      color: white;
+      font-weight: 800;
+      font-size: clamp(.88rem, 1.25vw, 1.1rem);
+      letter-spacing: .02em;
+      box-shadow: 0 4px 10px rgba(0,0,0,.25);
+      transition: opacity .25s ease;
+    }
+
+    .audio-status {
+      position: absolute;
+      left: 34px;
+      bottom: 22px;
+      z-index: 4;
+      max-width: min(68%, 780px);
+      padding: 7px 11px;
+      border-radius: 6px;
+      color: #222;
+      background: rgba(255,255,255,.86);
+      border: 1px solid rgba(0,0,0,.2);
+      font-size: .78rem;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity .25s ease, transform .25s ease;
+      pointer-events: none;
+    }
+
+    .audio-status.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #board {
+      position: relative;
+      min-width: 255px;
+      color: var(--blanco);
+      background:
+        radial-gradient(circle at 23% 15%, rgba(255,255,255,.05), transparent 32%),
+        radial-gradient(circle at 70% 76%, rgba(255,255,255,.035), transparent 31%),
+        repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 5px),
+        linear-gradient(150deg, var(--verde-pizarra), var(--verde-oscuro));
+      box-shadow: inset 0 0 35px rgba(0,0,0,.5);
+      padding: 22px 19px 104px;
+      overflow: hidden;
+    }
+
+    #board::before,
+    #board::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 10px;
+      background: linear-gradient(#7e552f, #3d2616);
+      box-shadow: 0 2px 5px rgba(0,0,0,.45);
+    }
+
+    #board::before { top: 0; }
+    #board::after { bottom: 0; }
+
+    .board-title {
+      margin-top: 7px;
+      margin-bottom: 15px;
+      padding-bottom: 9px;
+      text-align: center;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(1.05rem, 1.65vw, 1.48rem);
+      letter-spacing: .025em;
+      border-bottom: 2px solid rgba(255,255,255,.78);
+    }
+
+    #boardContent {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-family: "Comic Sans MS", "Segoe Print", cursive;
+      font-size: clamp(.86rem, 1.16vw, 1.04rem);
+      line-height: 1.34;
+    }
+
+    .chalk-item {
+      position: relative;
+      padding-left: 21px;
+      opacity: 0;
+      transform: translateX(12px);
+      transition: opacity .38s ease, transform .38s ease;
+    }
+
+    .chalk-item.show {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .chalk-item::before {
+      content: "•";
+      position: absolute;
+      left: 2px;
+      top: -2px;
+      color: var(--amarillo);
+      font-size: 1.35em;
+    }
+
+    .formula {
+      margin: 3px auto 2px;
+      padding: 8px 10px;
+      width: fit-content;
+      border: 1px dashed rgba(255,255,255,.72);
+      color: #fff8b4;
+      font-family: Cambria, Georgia, serif;
+      font-size: clamp(1.05rem, 1.6vw, 1.45rem);
+      text-align: center;
+      opacity: 0;
+      transform: scale(.92);
+      transition: opacity .4s ease, transform .4s ease;
+    }
+
+    .formula.show {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .controls {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 19px;
+      z-index: 4;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    button {
+      min-height: 38px;
+      border: 2px solid rgba(255,255,255,.85);
+      border-radius: 7px;
+      color: white;
+      background: rgba(11,30,17,.84);
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .025em;
+      cursor: pointer;
+      box-shadow: 0 3px 7px rgba(0,0,0,.35);
+      transition: transform .16s ease, background .16s ease, opacity .16s ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      background: rgba(210,31,43,.9);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    button:disabled {
+      cursor: default;
+      opacity: .45;
+    }
+
+    #startBtn {
+      grid-column: 1 / -1;
+      background: linear-gradient(180deg, #d62b36, #9f1420);
+    }
+
+    .timed-control {
+      display: none;
+    }
+
+    .timed-control.visible {
+      display: block;
+    }
+
+    @media (max-width: 920px) {
+      body { grid-template-rows: 58px 1fr; }
+      header { padding-right: 120px; }
+      .brand-text { display: none; }
+      .ra-logo { width: 44px; height: 44px; font-size: 1rem; }
+      main { grid-template-columns: 72% 28%; }
+      #board { min-width: 210px; padding: 17px 13px 105px; }
+      .scene-label { left: 23px; top: 17px; }
+      .audio-status { left: 23px; }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Principio de superposición</h1>
+    <div class="brand" aria-label="Realidad Aumentada">
+      <div class="ra-logo">RA</div>
+      <div class="brand-text">Realidad<br />Aumentada</div>
+    </div>
+  </header>
+
+  <main>
+    <section id="simulationPanel" aria-label="Zona de animación">
+      <canvas id="canvas"></canvas>
+      <div id="sceneLabel" class="scene-label" aria-hidden="true"></div>
+      <div id="audioStatus" class="audio-status"></div>
+    </section>
+
+    <aside id="board" aria-label="Pizarra de resumen">
+      <h2 class="board-title">Resumen</h2>
+      <div id="boardContent"></div>
+
+      <div class="controls">
+        <button id="startBtn">INICIAR</button>
+        <button id="repeatBtn" class="timed-control" disabled>REGRESAR</button>
+        <button id="pauseBtn" class="timed-control" disabled>PAUSAR</button>
+        <button id="exitBtn" class="timed-control">SALIR</button>
+      </div>
+    </aside>
+  </main>
+
+  <!-- El archivo onda.mp3 debe estar en la misma carpeta que este HTML. -->
+  <audio id="music" src="onda.mp3" preload="auto" loop></audio>
+
+  <script>
+    "use strict";
+
+    /* ============================================================
+       CONFIGURACIÓN GENERAL
+       ============================================================ */
+    const VOICE_PROFILE = {
+      lang: "es-CO",
+      rate: 0.87,
+      pitch: 0.98,
+      volume: 1,
+      commaPause: 500,
+      periodPause: 1000,
+      exclamationPause: 800,
+      colonPause: 650
+    };
+
+    const COLORS = {
+      red: "#d21f2b",
+      blue: "#1267c7",
+      yellow: "#f3c623",
+      black: "#111111",
+      gray: "#6b7379",
+      white: "#ffffff",
+      purple: "#6b2fa3"
+    };
+
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const simulationPanel = document.getElementById("simulationPanel");
+    const sceneLabel = document.getElementById("sceneLabel");
+    const audioStatus = document.getElementById("audioStatus");
+    const boardContent = document.getElementById("boardContent");
+
+    const startBtn = document.getElementById("startBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const repeatBtn = document.getElementById("repeatBtn");
+    const exitBtn = document.getElementById("exitBtn");
+    const music = document.getElementById("music");
+
+    let W = 0;
+    let H = 0;
+    let selectedVoice = null;
+    let simulationRunning = false;
+    let paused = false;
+    let runId = 0;
+    let animationFrameId = null;
+    let lastFrame = performance.now();
+    let timedControlsVisible = false;
+
+    const state = {
+      scene: "intro",
+      time: 0,
+      introStrength: 0,
+      bodyA: 0.34,
+      bodyB: 0.76,
+      bodyArrow: 0,
+      bodyAVisible: true,
+      bodyBVisible: true,
+      ropeOpacity: 0,
+      pulseA: 0.06,
+      pulseB: 0.94,
+      pulseAVisible: false,
+      pulseBVisible: false,
+      pulseAScale: 1,
+      pulseBScale: 1,
+      pulseAWidth: 1,
+      pulseBWidth: 1,
+      pulseASign: 1,
+      pulseBSign: 1,
+      showResultant: false,
+      showComponents: false,
+      showZone: true,
+      zoneGlow: 0.35,
+      baseAmp: 82,
+      sigma: 0.058,
+      resultLabel: "PULSO RESULTANTE",
+      waterMode: "inPhase",
+      waterProgress: 0,
+      waterOverlap: 0,
+      waterSplash: 0,
+      finalWord: 0,
+      finalText: "SUPERPOSICIÓN",
+      confetti: 0
+    };
+
+    /* ============================================================
+       LOCUCIONES CORREGIDAS Y ORGANIZADAS POR ESCENAS
+       Las pausas se controlan explícitamente:
+       coma = 0,5 s; punto = 1 s.
+       ============================================================ */
+    const NARRATION = {
+      intro:
+        "Observemos uno de los comportamientos más sorprendentes de las ondas.",
+
+      bodies:
+        "Comencemos con algo conocido. Si un cuerpo A ocupa una región del espacio y se quiere que otro cuerpo B ocupe esa misma región, el segundo tendrá que desplazar al primero. Dos cuerpos no pueden ocupar simultáneamente el mismo lugar del espacio.",
+
+      transition:
+        "Sin embargo, con las perturbaciones ondulatorias ocurre algo diferente.",
+
+      pulseA:
+        "Observa el pulso A. En este instante se encuentra en la región de la cuerda señalada por la línea roja. La animación se detiene momentáneamente para que podamos observar su forma.",
+
+      pulseB:
+        "Ahora observa el pulso B. Cuando llega a la región señalada por la línea roja, conserva la forma que tenía antes de entrar en ella.",
+
+      encounterStart:
+        "Observemos ahora qué sucede cuando los dos pulsos llegan simultáneamente a la región señalada por la línea roja.",
+
+      encounterOverlap:
+        "En la región señalada ya no distinguimos los pulsos por separado, sino una única deformación de la cuerda. Esta deformación solamente permanece durante el intervalo en que los pulsos coinciden.",
+
+      coexistence:
+        "Las dos perturbaciones pueden coexistir en la misma región de la cuerda. Durante esa coincidencia, el desplazamiento de cada elemento corresponde a la suma algebraica de los desplazamientos que produciría cada pulso por separado.",
+
+      separation:
+        "Después del encuentro, cada pulso continúa propagándose como si el otro no hubiera pasado por esa región. En este modelo ideal, ambos conservan su forma, su amplitud, su ancho y su velocidad.",
+
+      verification:
+        "Durante el intervalo en que los pulsos coincidieron en la región señalada por la línea roja, las dos perturbaciones coexistieron sin perder sus propiedades. Esto se comprueba porque, después del encuentro, cada pulso continúa propagándose con las mismas características que tenía inicialmente.",
+
+      definition:
+        "Cuando dos o más pulsos coinciden en una región del medio, el desplazamiento resultante de cada elemento corresponde a la suma algebraica de los desplazamientos producidos por cada pulso. Este comportamiento recibe el nombre de principio de superposición, y al fenómeno observado lo llamamos superposición de pulsos.",
+
+      waves:
+        "Hasta ahora hemos observado la superposición de pulsos aislados. Sin embargo, el mismo principio se aplica cuando las perturbaciones se repiten y forman ondas. Observa una onda de longitud de onda mayor que avanza desde la izquierda hacia la derecha, y otra de longitud de onda menor que avanza desde la derecha hacia la izquierda. Cuando coinciden, el desplazamiento resultante en cada punto corresponde a la suma algebraica de los desplazamientos producidos por ambas ondas.",
+
+      inverted:
+        "Veamos ahora qué sucede si el pulso que se propaga desde la derecha está invertido. Cuando los dos pulsos se encuentran, también se superponen. Si sus desplazamientos tienen igual magnitud y sentidos opuestos, se anulan durante el instante de coincidencia total. Sin embargo, esta anulación es temporal: después del encuentro, ambos pulsos continúan propagándose.",
+
+      different:
+        "Las animaciones anteriores han mostrado pulsos con iguales amplitudes y anchos. Si los pulsos tienen características diferentes, también puede producirse la superposición. En ese caso, la deformación resultante no corresponde a una duplicación de la amplitud ni a una anulación total.",
+
+      general:
+        "El principio de superposición puede aplicarse tanto a pulsos aislados como a ondas. Se cumple cuando las perturbaciones coinciden en un sistema cuyo comportamiento es aproximadamente lineal. En cada punto, la perturbación resultante corresponde a la suma algebraica de las perturbaciones individuales.",
+
+      sameNature:
+        "Pero debemos hacer una precisión. Para que dos pulsos o dos ondas se superpongan, sus perturbaciones deben ser de la misma naturaleza física y afectar la misma magnitud del sistema. Dos pulsos luminosos pueden superponerse entre sí, y dos ondas mecánicas que afectan la misma magnitud en un medio también pueden hacerlo. En cambio, un pulso de luz, o una onda luminosa, y una onda mecánica en el aire pueden atravesar simultáneamente la misma región del espacio, pero sus perturbaciones no se suman y, por tanto, no se superponen entre sí. Observa cómo los frentes luminosos atraviesan las capas de aire mientras estas oscilan sin alterar la propagación de la luz.",
+
+      closing:
+        "Hemos observado la superposición de pulsos en una cuerda. También comprobamos que una onda luminosa y una onda mecánica pueden atravesar simultáneamente la misma región sin superponerse entre sí, porque corresponden a perturbaciones de distinta naturaleza física. Algunas ondas mecánicas que se propagan por el aire pueden ser captadas por el oído y procesadas por el sistema nervioso. La onda mecánica es la perturbación física que se propaga; el sonido es la sensación que se produce. El principio de superposición todavía encierra muchas otras sorpresas."
+    };
+
+    /* ============================================================
+       UTILIDADES
+       ============================================================ */
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const easeInOut = t => t < 0.5
+      ? 2 * t * t
+      : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+
+    function resizeCanvas() {
+      const rect = simulationPanel.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = Math.max(1, rect.width);
+      H = Math.max(1, rect.height);
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      canvas.style.width = `${W}px`;
+      canvas.style.height = `${H}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function setSceneLabel(text) {
+      sceneLabel.style.opacity = "0";
+      window.setTimeout(() => {
+        sceneLabel.textContent = text;
+        sceneLabel.style.opacity = "1";
+      }, 120);
+    }
+
+    function hideSceneLabel() {
+      sceneLabel.textContent = "";
+      sceneLabel.style.opacity = "0";
+    }
+
+    function showStatus(message, duration = 4400) {
+      audioStatus.textContent = message;
+      audioStatus.classList.add("visible");
+      window.setTimeout(() => audioStatus.classList.remove("visible"), duration);
+    }
+
+    function clearBoard() {
+      boardContent.innerHTML = "";
+    }
+
+    function addBoardItem(text, options = {}) {
+      const { formula = false, delay = 0 } = options;
+      const element = document.createElement("div");
+      element.className = formula ? "formula" : "chalk-item";
+      element.innerHTML = text;
+      boardContent.appendChild(element);
+      window.setTimeout(() => element.classList.add("show"), delay);
+      return element;
+    }
+
+    function resetState() {
+      Object.assign(state, {
+        scene: "intro",
+        time: 0,
+        introStrength: 0,
+        bodyA: 0.34,
+        bodyB: 0.76,
+        bodyArrow: 0,
+        bodyAVisible: true,
+        bodyBVisible: true,
+        ropeOpacity: 0,
+        pulseA: 0.06,
+        pulseB: 0.94,
+        pulseAVisible: false,
+        pulseBVisible: false,
+        pulseAScale: 1,
+        pulseBScale: 1,
+        pulseAWidth: 1,
+        pulseBWidth: 1,
+        pulseASign: 1,
+        pulseBSign: 1,
+        showResultant: false,
+        showComponents: false,
+        showZone: true,
+        zoneGlow: 0.35,
+        baseAmp: 82,
+        sigma: 0.058,
+        resultLabel: "PULSO RESULTANTE",
+        waterMode: "inPhase",
+        waterProgress: 0,
+        waterOverlap: 0,
+        waterSplash: 0,
+        finalWord: 0,
+        finalText: "SUPERPOSICIÓN",
+        confetti: 0
+      });
+      clearBoard();
+      hideSceneLabel();
+    }
+
+    async function sleep(ms, thisRun = runId) {
+      let remaining = ms;
+      let previous = performance.now();
+      while (remaining > 0) {
+        if (thisRun !== runId) throw new Error("RUN_CANCELLED");
+        if (paused) {
+          await new Promise(resolve => window.setTimeout(resolve, 50));
+          previous = performance.now();
+          continue;
+        }
+        await new Promise(resolve => window.setTimeout(resolve, Math.min(40, remaining)));
+        const now = performance.now();
+        remaining -= now - previous;
+        previous = now;
+      }
+    }
+
+    async function tween(duration, update, easing = easeInOut, thisRun = runId) {
+      let elapsed = 0;
+      let previous = performance.now();
+
+      while (elapsed < duration) {
+        if (thisRun !== runId) throw new Error("RUN_CANCELLED");
+        if (paused) {
+          await new Promise(resolve => window.setTimeout(resolve, 40));
+          previous = performance.now();
+          continue;
+        }
+
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        const now = performance.now();
+        elapsed += now - previous;
+        previous = now;
+        update(easing(clamp(elapsed / duration, 0, 1)));
+      }
+      update(1);
+    }
+
+    async function setMusicVolume(target, duration = 350, thisRun = runId) {
+      if (!Number.isFinite(music.volume)) music.volume = 1;
+      const start = music.volume;
+      await tween(duration, t => {
+        music.volume = clamp(lerp(start, target, t), 0, 1);
+      }, easeInOut, thisRun);
+    }
+
+    async function musicalPause(ms, thisRun = runId) {
+      await setMusicVolume(1, 300, thisRun);
+      await sleep(ms, thisRun);
+    }
+
+    /* ============================================================
+       MOTOR DE VOZ
+       ============================================================ */
+    function voiceScore(voice) {
+      const name = (voice.name || "").toLowerCase();
+      const lang = (voice.lang || "").toLowerCase();
+      let score = 0;
+
+      if (lang === "es-co") score += 120;
+      else if (lang.startsWith("es-co")) score += 110;
+      else if (lang.startsWith("es")) score += 55;
+
+      const naturalTerms = ["natural", "neural", "online", "premium", "enhanced"];
+      const maleNames = [
+        "gonzalo", "antonio", "andrés", "andres", "carlos", "diego",
+        "daniel", "enrique", "jorge", "juan", "mateo", "miguel",
+        "pablo", "raul", "raúl", "sergio", "alvaro", "álvaro"
+      ];
+      const femaleNames = [
+        "salome", "salomé", "helena", "elvira", "laura", "lucia",
+        "lucía", "maria", "maría", "monica", "mónica", "paulina"
+      ];
+
+      naturalTerms.forEach(term => { if (name.includes(term)) score += 18; });
+      maleNames.forEach(term => { if (name.includes(term)) score += 32; });
+      femaleNames.forEach(term => { if (name.includes(term)) score -= 24; });
+
+      if (voice.default) score += 3;
+      return score;
+    }
+
+    function chooseVoice() {
+      const voices = window.speechSynthesis?.getVoices?.() || [];
+      if (!voices.length) return null;
+      const spanishVoices = voices.filter(v => (v.lang || "").toLowerCase().startsWith("es"));
+      const pool = spanishVoices.length ? spanishVoices : voices;
+      return [...pool].sort((a, b) => voiceScore(b) - voiceScore(a))[0] || null;
+    }
+
+    function loadVoices() {
+      selectedVoice = chooseVoice();
+      if (selectedVoice) {
+        showStatus(`Voz seleccionada: ${selectedVoice.name} · ${selectedVoice.lang}`, 3600);
+      }
+    }
+
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+      loadVoices();
+    }
+
+    function splitSpeechText(text) {
+      const normalized = text
+        .replace(/\s+/g, " ")
+        .replace(/\.\.\.+/g, ".")
+        .trim();
+
+      const pieces = normalized.match(/[^,.;:!?¡¿]+[,.;:!?]+|[^,.;:!?¡¿]+$/g) || [normalized];
+      return pieces
+        .map(piece => piece.trim())
+        .filter(Boolean)
+        .map(piece => {
+          const last = piece.slice(-1);
+          let pause = 0;
+          if (last === ",") pause = VOICE_PROFILE.commaPause;
+          else if (last === "." || last === ";") pause = VOICE_PROFILE.periodPause;
+          else if (last === ":") pause = VOICE_PROFILE.colonPause;
+          else if (last === "!" || last === "?") pause = VOICE_PROFILE.exclamationPause;
+          return { text: piece, pause };
+        });
+    }
+
+    function speakUtterance(text, thisRun = runId) {
+      return new Promise((resolve, reject) => {
+        if (thisRun !== runId) {
+          reject(new Error("RUN_CANCELLED"));
+          return;
+        }
+
+        if (!("speechSynthesis" in window)) {
+          showStatus("Este navegador no permite usar la síntesis de voz.", 6500);
+          resolve();
+          return;
+        }
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = selectedVoice?.lang || VOICE_PROFILE.lang;
+        if (selectedVoice) utterance.voice = selectedVoice;
+        utterance.rate = VOICE_PROFILE.rate;
+        utterance.pitch = VOICE_PROFILE.pitch;
+        utterance.volume = VOICE_PROFILE.volume;
+
+        utterance.onend = () => resolve();
+        utterance.onerror = event => {
+          if (event.error === "interrupted" || event.error === "canceled") {
+            reject(new Error("RUN_CANCELLED"));
+          } else {
+            showStatus(`La locución presentó un problema: ${event.error || "desconocido"}.`, 5200);
+            resolve();
+          }
+        };
+
+        window.speechSynthesis.speak(utterance);
+      });
+    }
+
+    async function speak(text, thisRun = runId) {
+      await setMusicVolume(0.10, 340, thisRun);
+      const parts = splitSpeechText(text);
+
+      for (const part of parts) {
+        if (thisRun !== runId) throw new Error("RUN_CANCELLED");
+        await speakUtterance(part.text, thisRun);
+        if (part.pause > 0) await sleep(part.pause, thisRun);
+      }
+
+      await setMusicVolume(1, 420, thisRun);
+    }
+
+    /* ============================================================
+       DIBUJO
+       ============================================================ */
+    function roundedRect(x, y, width, height, radius) {
+      const r = Math.min(radius, width / 2, height / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + width, y, x + width, y + height, r);
+      ctx.arcTo(x + width, y + height, x, y + height, r);
+      ctx.arcTo(x, y + height, x, y, r);
+      ctx.arcTo(x, y, x + width, y, r);
+      ctx.closePath();
+    }
+
+    function drawMetallicFrame() {
+      ctx.save();
+      ctx.strokeStyle = "rgba(0,0,0,.18)";
+      ctx.lineWidth = 1;
+      for (let x = 20; x < W; x += 48) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x - 65, H);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawIntro() {
+      const t = state.time;
+      const centerY = H * 0.54;
+
+      ctx.save();
+      const gradient = ctx.createRadialGradient(W * .5, centerY, 10, W * .5, centerY, Math.max(W, H) * .65);
+      gradient.addColorStop(0, `rgba(18,103,199,${.22 * state.introStrength})`);
+      gradient.addColorStop(.45, `rgba(210,31,43,${.10 * state.introStrength})`);
+      gradient.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, W, H);
+
+      for (let layer = 0; layer < 5; layer++) {
+        ctx.beginPath();
+        const amp = 18 + layer * 7;
+        const phase = t * (1.0 + layer * .07) + layer * .85;
+        for (let x = 0; x <= W; x += 5) {
+          const y = centerY + (layer - 2) * 28
+            + Math.sin(x * .018 - phase) * amp
+            + Math.sin(x * .006 + phase * .65) * 7;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = layer % 2 === 0
+          ? `rgba(210,31,43,${.18 + .08 * state.introStrength})`
+          : `rgba(18,103,199,${.18 + .08 * state.introStrength})`;
+        ctx.lineWidth = 2.3;
+        ctx.stroke();
+      }
+
+      for (let i = 0; i < 90; i++) {
+        const px = (i * 83.17 + t * (10 + (i % 5))) % (W + 40) - 20;
+        const py = H * .23 + ((i * 41.7) % (H * .62));
+        const alpha = .18 + .25 * Math.sin(t * 1.5 + i);
+        ctx.fillStyle = `rgba(17,17,17,${Math.abs(alpha) * state.introStrength})`;
+        ctx.beginPath();
+        ctx.arc(px, py, 1.2 + (i % 3) * .45, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `900 ${Math.max(30, W * .04)}px Segoe UI`;
+      ctx.fillStyle = `rgba(17,17,17,${.86 * state.introStrength})`;
+      ctx.fillText("ONDAS", W * .5, H * .33);
+      ctx.restore();
+    }
+
+    function drawGroundLine(y) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(17,17,17,.35)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(W * .12, y);
+      ctx.lineTo(W * .88, y);
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(17,17,17,.12)";
+      ctx.lineWidth = 1;
+      for (let x = W * .14; x <= W * .86; x += 42) {
+        ctx.beginPath();
+        ctx.moveTo(x, y - 8);
+        ctx.lineTo(x, y + 8);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawBody(xNorm, label, color, visible = true) {
+      if (!visible) return;
+      const x = W * xNorm;
+      const y = H * .56;
+      const radius = clamp(W * .055, 35, 61);
+
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,.28)";
+      ctx.shadowBlur = 14;
+      ctx.shadowOffsetY = 8;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowColor = "transparent";
+
+      const shine = ctx.createRadialGradient(x - radius * .35, y - radius * .4, 2, x, y, radius);
+      shine.addColorStop(0, "rgba(255,255,255,.72)");
+      shine.addColorStop(.35, "rgba(255,255,255,.12)");
+      shine.addColorStop(1, "rgba(0,0,0,.25)");
+      ctx.fillStyle = shine;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "white";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `900 ${radius * .72}px Segoe UI`;
+      ctx.fillText(label, x, y + 1);
+
+      ctx.fillStyle = "rgba(17,17,17,.78)";
+      ctx.font = `700 ${Math.max(14, W * .014)}px Segoe UI`;
+      ctx.fillText(`Cuerpo ${label}`, x, y + radius + 34);
+      ctx.restore();
+    }
+
+    function drawBodies() {
+      const groundY = H * .68;
+      drawGroundLine(groundY);
+
+      ctx.save();
+      const targetX = W * state.bodyA;
+      ctx.fillStyle = "rgba(210,31,43,.08)";
+      ctx.strokeStyle = "rgba(210,31,43,.60)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 7]);
+      ctx.beginPath();
+      ctx.arc(targetX, H * .56, clamp(W * .064, 42, 70), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (state.bodyArrow > .02) {
+        const fromX = W * state.bodyB - W * .07;
+        const toX = W * state.bodyA + W * .08;
+        const y = H * .39;
+        const endX = lerp(fromX, toX, state.bodyArrow);
+        ctx.strokeStyle = COLORS.black;
+        ctx.fillStyle = COLORS.black;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(fromX, y);
+        ctx.lineTo(endX, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(endX, y);
+        ctx.lineTo(endX + 13, y - 8);
+        ctx.lineTo(endX + 13, y + 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.font = `800 ${Math.max(14, W * .015)}px Segoe UI`;
+        ctx.textAlign = "center";
+        ctx.fillText("B intenta ocupar el lugar de A", (fromX + endX) / 2, y - 22);
+      }
+      ctx.restore();
+
+      drawBody(state.bodyA, "A", COLORS.red, state.bodyAVisible);
+      drawBody(state.bodyB, "B", COLORS.blue, state.bodyBVisible);
+    }
+
+    function ropeGeometry() {
+      return {
+        // La cuerda continúa por fuera del área visible: no tiene extremos
+        // ni soportes dentro del modelo representado.
+        x0: -W * .04,
+        x1: W * 1.04,
+        y0: H * .58,
+        length: W * 1.08
+      };
+    }
+
+    function gaussian(xNorm, center, amplitude = state.baseAmp, sigma = state.sigma) {
+      const safeSigma = Math.max(0.004, sigma);
+      const distance = (xNorm - center) / safeSigma;
+      return amplitude * Math.exp(-0.5 * distance * distance);
+    }
+
+    function pulseValue(xNorm, which) {
+      if (which === "A") {
+        return state.pulseAVisible
+          ? state.pulseASign * gaussian(
+              xNorm,
+              state.pulseA,
+              state.baseAmp * state.pulseAScale,
+              state.sigma * state.pulseAWidth
+            )
+          : 0;
+      }
+
+      return state.pulseBVisible
+        ? state.pulseBSign * gaussian(
+            xNorm,
+            state.pulseB,
+            state.baseAmp * state.pulseBScale,
+            state.sigma * state.pulseBWidth
+          )
+        : 0;
+    }
+
+    function pulseContributions(xNorm) {
+      const a = pulseValue(xNorm, "A");
+      const b = pulseValue(xNorm, "B");
+      return { a, b, total: a + b };
+    }
+
+    function drawRedZone() {
+      if (!state.showZone) return;
+      const { x0, length, y0 } = ropeGeometry();
+      const centerX = x0 + length * .5;
+
+      // La longitud visible de un pulso gaussiano es, aproximadamente,
+      // cinco veces sigma. La línea roja marca esa misma extensión.
+      const pulseWidth = length * state.sigma * Math.max(state.pulseAWidth, state.pulseBWidth) * 5.2;
+      const xStart = centerX - pulseWidth / 2;
+      const xEnd = centerX + pulseWidth / 2;
+      const lineY = y0 + Math.max(70, H * .105);
+      const glow = .15 + .55 * state.zoneGlow;
+
+      ctx.save();
+
+      const zoneGradient = ctx.createLinearGradient(xStart, 0, xEnd, 0);
+      zoneGradient.addColorStop(0, "rgba(210,31,43,0)");
+      zoneGradient.addColorStop(.18, `rgba(210,31,43,${.05 + .08 * state.zoneGlow})`);
+      zoneGradient.addColorStop(.5, `rgba(210,31,43,${.10 + .10 * state.zoneGlow})`);
+      zoneGradient.addColorStop(.82, `rgba(210,31,43,${.05 + .08 * state.zoneGlow})`);
+      zoneGradient.addColorStop(1, "rgba(210,31,43,0)");
+      ctx.fillStyle = zoneGradient;
+      ctx.fillRect(xStart, y0 - state.baseAmp * 2.25, pulseWidth, state.baseAmp * 2.55 + (lineY - y0));
+
+      ctx.shadowColor = `rgba(210,31,43,${glow})`;
+      ctx.shadowBlur = 18 + 20 * state.zoneGlow;
+      ctx.strokeStyle = COLORS.red;
+      ctx.lineWidth = 6;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(xStart, lineY);
+      ctx.lineTo(xEnd, lineY);
+      ctx.stroke();
+      ctx.shadowColor = "transparent";
+
+      // Pequeñas marcas verticales delimitan con claridad la región.
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(xStart, lineY - 10);
+      ctx.lineTo(xStart, lineY + 10);
+      ctx.moveTo(xEnd, lineY - 10);
+      ctx.lineTo(xEnd, lineY + 10);
+      ctx.stroke();
+
+      ctx.fillStyle = COLORS.red;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.font = `900 ${Math.max(14, W * .015)}px Segoe UI`;
+      ctx.fillText("REGIÓN DE COINCIDENCIA", centerX, lineY - 13);
+      ctx.restore();
+    }
+
+    function drawVelocityArrow(center, direction, color, label, verticalOffset = 0) {
+      const { x0, length, y0 } = ropeGeometry();
+      const peakX = x0 + length * center;
+      const own = pulseValue(center, label);
+      const other = label === "A" ? pulseValue(center, "B") : pulseValue(center, "A");
+      const peakY = y0 - own - other;
+      const sign = label === "A" ? state.pulseASign : state.pulseBSign;
+      const arrowLength = clamp(W * .055, 48, 72);
+      const arrowY = sign >= 0
+        ? peakY - 62 - verticalOffset
+        : peakY + 62 + verticalOffset;
+      const startX = peakX - direction * arrowLength * .5;
+      const endX = peakX + direction * arrowLength * .5;
+      const head = 10;
+
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
+      ctx.shadowColor = "rgba(255,255,255,.9)";
+      ctx.shadowBlur = 4;
+
+      ctx.beginPath();
+      ctx.moveTo(startX, arrowY);
+      ctx.lineTo(endX, arrowY);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(endX, arrowY);
+      ctx.lineTo(endX - direction * head, arrowY - 7);
+      ctx.lineTo(endX - direction * head, arrowY + 7);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.shadowColor = "transparent";
+      ctx.font = `900 ${Math.max(13, W * .014)}px Segoe UI`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = sign >= 0 ? "bottom" : "top";
+      ctx.fillText(`v${label}`, (startX + endX) / 2, arrowY + (sign >= 0 ? -8 : 8));
+      ctx.restore();
+    }
+
+    function drawPulseGhost(center, color, label, offsetY = 0, alpha = .45) {
+      const { x0, length, y0 } = ropeGeometry();
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = 2.3;
+      ctx.setLineDash([7, 6]);
+      ctx.beginPath();
+      for (let i = 0; i <= 180; i++) {
+        const xn = i / 180;
+        const x = x0 + length * xn;
+        const y = y0 + offsetY - gaussian(xn, center);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+
+      const peakX = x0 + length * center;
+      const peakY = y0 + offsetY - state.baseAmp;
+      ctx.fillStyle = color;
+      ctx.font = `900 ${Math.max(17, W * .019)}px Segoe UI`;
+      ctx.textAlign = "center";
+      ctx.fillText(label, peakX, peakY - 13);
+      ctx.restore();
+    }
+
+    function drawRope() {
+      const { x0, x1, y0, length } = ropeGeometry();
+      ctx.save();
+      ctx.globalAlpha = state.ropeOpacity;
+
+      drawRedZone();
+      ctx.strokeStyle = "rgba(17,17,17,.23)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 7]);
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y0);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const pointCount = Math.max(95, Math.floor(W / 7));
+      let previous = null;
+
+      for (let i = 0; i < pointCount; i++) {
+        const xn = i / (pointCount - 1);
+        const x = x0 + length * xn;
+        const { a, b, total } = pulseContributions(xn);
+        const y = y0 - total;
+
+        if (previous) {
+          ctx.strokeStyle = "rgba(17,17,17,.55)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(previous.x, previous.y);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+        }
+
+        const aActive = Math.abs(a) > 3;
+        const bActive = Math.abs(b) > 3;
+        const cancelled = aActive && bActive && Math.abs(total) < 3.2;
+        let color = COLORS.black;
+        let radius = 3.1;
+
+        if (cancelled) {
+          color = COLORS.black;
+          radius = 4.0;
+        } else if (aActive && bActive) {
+          color = state.showResultant
+            ? (i % 2 === 0 ? COLORS.red : COLORS.blue)
+            : COLORS.purple;
+          radius = 4.1;
+        } else if (aActive) {
+          color = COLORS.red;
+          radius = 3.8;
+        } else if (bActive) {
+          color = COLORS.blue;
+          radius = 3.8;
+        }
+
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        previous = { x, y };
+      }
+
+      const pulseLabels = [];
+      if (state.pulseAVisible && !state.showResultant) {
+        pulseLabels.push({
+          center: state.pulseA,
+          label: "A",
+          color: COLORS.red,
+          sign: state.pulseASign
+        });
+      }
+      if (state.pulseBVisible && !state.showResultant) {
+        pulseLabels.push({
+          center: state.pulseB,
+          label: "B",
+          color: COLORS.blue,
+          sign: state.pulseBSign
+        });
+      }
+
+      pulseLabels.forEach(({ center, label, color, sign }) => {
+        const x = x0 + length * center;
+        const y = y0 - pulseValue(center, "A") - pulseValue(center, "B");
+        const labelY = y + (sign >= 0 ? -17 : 30);
+        ctx.fillStyle = color;
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 3;
+        ctx.font = `900 ${Math.max(18, W * .021)}px Segoe UI`;
+        ctx.textAlign = "center";
+        ctx.strokeText(label, x, labelY);
+        ctx.fillText(label, x, labelY);
+      });
+
+      if (state.pulseAVisible) {
+        drawVelocityArrow(state.pulseA, 1, COLORS.red, "A", state.showResultant ? 22 : 0);
+      }
+      if (state.pulseBVisible) {
+        drawVelocityArrow(state.pulseB, -1, COLORS.blue, "B", state.showResultant ? 55 : 0);
+      }
+
+      if (state.showResultant) {
+        const x = x0 + length * .5;
+        const centerTotal = pulseValue(.5, "A") + pulseValue(.5, "B");
+        const cancellation = Math.abs(centerTotal) < 4;
+        const y = cancellation
+          ? y0 - 72
+          : y0 - centerTotal - (centerTotal >= 0 ? 62 : -62);
+        const label = cancellation ? "ANULACIÓN DE LA PERTURBACIÓN" : state.resultLabel;
+        const boxWidth = cancellation ? 270 : 205;
+
+        ctx.fillStyle = COLORS.black;
+        roundedRect(x - boxWidth / 2, y - 18, boxWidth, 36, 8);
+        ctx.fill();
+        ctx.fillStyle = cancellation ? COLORS.white : COLORS.yellow;
+        ctx.font = `900 ${Math.max(13, W * .015)}px Segoe UI`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, x, y);
+      }
+
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+
+    function drawWater() {
+      const tankX = W * .08;
+      const tankY = H * .12;
+      const tankW = W * .84;
+      const tankH = H * .72;
+      const centerY = tankY + tankH * .52;
+      const sourceA = { x: tankX + tankW * .23, y: centerY };
+      const sourceB = { x: tankX + tankW * .77, y: centerY };
+      const maxRadius = tankW * .38;
+      const radius = maxRadius * clamp(state.waterProgress, 0, 1.18);
+      const contactRadius = (sourceB.x - sourceA.x) / 2;
+      const contactFactor = clamp(1 - Math.abs(radius - contactRadius) / (tankW * .115), 0, 1);
+      const overlap = contactFactor * state.waterOverlap;
+
+      ctx.save();
+
+      const waterGradient = ctx.createLinearGradient(tankX, tankY, tankX, tankY + tankH);
+      waterGradient.addColorStop(0, "#dff5fb");
+      waterGradient.addColorStop(.55, "#8bc9dc");
+      waterGradient.addColorStop(1, "#3e8ea8");
+      ctx.fillStyle = "#4e555b";
+      roundedRect(tankX - 12, tankY - 12, tankW + 24, tankH + 24, 22);
+      ctx.fill();
+      ctx.fillStyle = waterGradient;
+      roundedRect(tankX, tankY, tankW, tankH, 15);
+      ctx.fill();
+
+      ctx.save();
+      roundedRect(tankX, tankY, tankW, tankH, 15);
+      ctx.clip();
+
+      for (let i = 0; i < 16; i++) {
+        const y = tankY + 18 + i * (tankH - 36) / 15;
+        ctx.strokeStyle = `rgba(255,255,255,${.05 + (i % 3) * .02})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = tankX; x <= tankX + tankW; x += 8) {
+          const wave = Math.sin(x * .025 + state.time * .8 + i) * 2.2;
+          if (x === tankX) ctx.moveTo(x, y + wave);
+          else ctx.lineTo(x, y + wave);
+        }
+        ctx.stroke();
+      }
+
+      const drawRingSet = (source, color, phaseShift = 0) => {
+        for (let trail = 0; trail < 4; trail++) {
+          const r = Math.max(0, radius - trail * 18);
+          if (r < 4) continue;
+          const alpha = Math.max(0, .72 - trail * .14);
+          ctx.strokeStyle = color.replace("ALPHA", (alpha * (.65 + .35 * state.waterOverlap)).toFixed(3));
+          ctx.lineWidth = trail === 0 ? 5 : 2.2;
+          ctx.beginPath();
+          ctx.arc(source.x, source.y, r, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        const splash = state.waterSplash;
+        if (splash > .01) {
+          ctx.fillStyle = `rgba(255,255,255,${.48 * splash})`;
+          ctx.beginPath();
+          ctx.arc(source.x, source.y, 10 + 18 * (1 - splash), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = `rgba(17,17,17,${.65 * splash})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(source.x, source.y, 6 + 10 * (1 - splash), 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      };
+
+      drawRingSet(sourceA, "rgba(210,31,43,ALPHA)");
+      drawRingSet(sourceB, "rgba(18,103,199,ALPHA)");
+
+      if (overlap > .02) {
+        const segmentH = Math.min(tankH * .48, Math.sqrt(Math.max(0, radius * radius - contactRadius * contactRadius)) * 1.75 + 34);
+        const x = tankX + tankW * .5;
+
+        if (state.waterMode === "inPhase") {
+          ctx.shadowColor = `rgba(255,255,255,${.75 * overlap})`;
+          ctx.shadowBlur = 20;
+          ctx.strokeStyle = `rgba(255,255,255,${.92 * overlap})`;
+          ctx.lineWidth = 13 + 8 * overlap;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(x, centerY - segmentH / 2);
+          ctx.lineTo(x, centerY + segmentH / 2);
+          ctx.stroke();
+
+          ctx.shadowColor = "transparent";
+          ctx.strokeStyle = `rgba(210,31,43,${.75 * overlap})`;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(x - 4, centerY - segmentH / 2);
+          ctx.lineTo(x - 4, centerY + segmentH / 2);
+          ctx.stroke();
+          ctx.strokeStyle = `rgba(18,103,199,${.75 * overlap})`;
+          ctx.beginPath();
+          ctx.moveTo(x + 4, centerY - segmentH / 2);
+          ctx.lineTo(x + 4, centerY + segmentH / 2);
+          ctx.stroke();
+        } else {
+          const calm = ctx.createLinearGradient(x - 26, 0, x + 26, 0);
+          calm.addColorStop(0, "rgba(111,184,205,0)");
+          calm.addColorStop(.35, `rgba(125,199,218,${.90 * overlap})`);
+          calm.addColorStop(.65, `rgba(125,199,218,${.90 * overlap})`);
+          calm.addColorStop(1, "rgba(111,184,205,0)");
+          ctx.fillStyle = calm;
+          ctx.fillRect(x - 28, centerY - segmentH / 2 - 15, 56, segmentH + 30);
+
+          ctx.strokeStyle = `rgba(17,17,17,${.55 * overlap})`;
+          ctx.lineWidth = 2;
+          ctx.setLineDash([7, 7]);
+          ctx.beginPath();
+          ctx.moveTo(x, centerY - segmentH / 2);
+          ctx.lineTo(x, centerY + segmentH / 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+
+      ctx.restore();
+
+      const stoneY = tankY - 24 + 26 * (1 - state.waterSplash);
+      [sourceA, sourceB].forEach((source, index) => {
+        ctx.fillStyle = index === 0 ? COLORS.red : COLORS.blue;
+        ctx.beginPath();
+        ctx.ellipse(source.x, stoneY, 12, 9, .2, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.fillStyle = "rgba(17,17,17,.80)";
+      ctx.font = `800 ${Math.max(14, W * .015)}px Segoe UI`;
+      ctx.textAlign = "center";
+      ctx.fillText("Pulso circular A", sourceA.x, tankY + tankH + 42);
+      ctx.fillText("Pulso circular B", sourceB.x, tankY + tankH + 42);
+
+      if (overlap > .12) {
+        const text = state.waterMode === "inPhase"
+          ? "AUMENTO DE LA AMPLITUD"
+          : "ANULACIÓN EN EL ENCUENTRO";
+        ctx.fillStyle = "rgba(17,17,17,.88)";
+        roundedRect(W * .5 - 155, tankY + 18, 310, 38, 8);
+        ctx.fill();
+        ctx.fillStyle = state.waterMode === "inPhase" ? COLORS.yellow : COLORS.white;
+        ctx.font = `900 ${Math.max(14, W * .016)}px Segoe UI`;
+        ctx.fillText(text, W * .5, tankY + 43);
+      }
+
+      ctx.restore();
+    }
+
+    function drawWaveSuperposition() {
+      const left = W * .08;
+      const right = W * .92;
+      const width = right - left;
+      const y1Base = H * .25;
+      const y2Base = H * .48;
+      const sumBase = H * .73;
+      const amplitude1 = Math.min(46, H * .075);
+      const amplitude2 = amplitude1 * .62;
+      const lambdaLarge = width * .30;
+      const lambdaSmall = width * .14;
+      const omega = 2.2;
+      const phase = state.time * omega;
+
+      ctx.save();
+      const bg = ctx.createLinearGradient(0, H * .08, 0, H * .88);
+      bg.addColorStop(0, "#07141f");
+      bg.addColorStop(1, "#173645");
+      ctx.fillStyle = bg;
+      roundedRect(W * .045, H * .08, W * .91, H * .80, 20);
+      ctx.fill();
+
+      const axis = y => {
+        ctx.strokeStyle = "rgba(255,255,255,.22)";
+        ctx.lineWidth = 1.4;
+        ctx.setLineDash([7, 7]);
+        ctx.beginPath();
+        ctx.moveTo(left, y);
+        ctx.lineTo(right, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      };
+
+      const component1 = x => amplitude1 * Math.sin(2 * Math.PI * (x - left) / lambdaLarge - phase);
+      const component2 = x => amplitude2 * Math.sin(2 * Math.PI * (x - left) / lambdaSmall + phase);
+
+      const curve = (base, fn, color, lineWidth = 4, glow = color) => {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.shadowColor = glow;
+        ctx.shadowBlur = 9;
+        ctx.beginPath();
+        for (let x = left; x <= right; x += 2) {
+          const y = base - fn(x);
+          if (x === left) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+      };
+
+      const motionArrow = (xStart, y, xEnd, color) => {
+        const direction = Math.sign(xEnd - xStart) || 1;
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 4;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(xStart, y);
+        ctx.lineTo(xEnd, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(xEnd, y);
+        ctx.lineTo(xEnd - direction * 13, y - 8);
+        ctx.lineTo(xEnd - direction * 13, y + 8);
+        ctx.closePath();
+        ctx.fill();
+      };
+
+      axis(y1Base);
+      axis(y2Base);
+      axis(sumBase);
+      curve(y1Base, component1, COLORS.red, 4, "rgba(210,31,43,.8)");
+      curve(y2Base, component2, COLORS.blue, 4, "rgba(18,103,199,.9)");
+      curve(sumBase, x => component1(x) + component2(x), COLORS.yellow, 5, "rgba(243,198,35,.9)");
+
+      // Flechas de propagación: lambda grande sale de la izquierda;
+      // lambda pequeña llega desde la derecha y avanza hacia la izquierda.
+      motionArrow(left + width * .08, y1Base - amplitude1 - 34, left + width * .23, COLORS.red);
+      motionArrow(right - width * .08, y2Base - amplitude2 - 34, right - width * .23, COLORS.blue);
+
+      ctx.textAlign = "left";
+      ctx.textBaseline = "bottom";
+      ctx.font = `800 ${Math.max(14, W * .015)}px Segoe UI`;
+      ctx.fillStyle = COLORS.red;
+      ctx.fillText("Onda 1: λ mayor", left, y1Base - amplitude1 - 43);
+      ctx.fillStyle = "#7fc5ff";
+      ctx.fillText("Onda 2: λ menor", left, y2Base - amplitude2 - 43);
+      ctx.fillStyle = COLORS.yellow;
+      ctx.fillText("Señal resultante:  y = y₁ + y₂", left, sumBase - amplitude1 - amplitude2 - 18);
+
+      // Marcas de una longitud de onda en cada señal.
+      const lambdaMark = (x, y, length, color, label) => {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + length, y);
+        ctx.moveTo(x, y - 6);
+        ctx.lineTo(x, y + 6);
+        ctx.moveTo(x + length, y - 6);
+        ctx.lineTo(x + length, y + 6);
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.font = `700 ${Math.max(13, W * .014)}px Cambria`;
+        ctx.fillText(label, x + length / 2, y + 8);
+      };
+      lambdaMark(left + width * .45, y1Base + amplitude1 + 24, lambdaLarge, "#ff8c94", "λ mayor");
+      lambdaMark(left + width * .55, y2Base + amplitude2 + 23, lambdaSmall, "#87c7ff", "λ menor");
+      ctx.restore();
+    }
+
+    function drawDifferentNature() {
+      const x0 = W * .06;
+      const y0 = H * .11;
+      const right = W * .94;
+      const top = H * .13;
+      const bottom = H * .82;
+      const t = state.time;
+
+      ctx.save();
+
+      const background = ctx.createLinearGradient(0, top, 0, bottom);
+      background.addColorStop(0, "#071a2b");
+      background.addColorStop(.55, "#12384c");
+      background.addColorStop(1, "#294a55");
+      ctx.fillStyle = background;
+      roundedRect(W * .045, H * .08, W * .91, H * .78, 20);
+      ctx.fill();
+      ctx.save();
+      roundedRect(W * .045, H * .08, W * .91, H * .78, 20);
+      ctx.clip();
+
+      // Capas de aire: cada línea oscila horizontalmente alrededor de su
+      // posición de equilibrio. Las zonas de compresión y rarefacción avanzan.
+      const layerCount = 38;
+      const airLeft = W * .16;
+      const airRight = W * .93;
+      const airTop = H * .25;
+      const airBottom = H * .80;
+      for (let i = 0; i < layerCount; i++) {
+        const q = i / (layerCount - 1);
+        const equilibriumX = lerp(airLeft, airRight, q);
+        const displacement = Math.sin(q * Math.PI * 7 - t * 3.0) * W * .009;
+        const x = equilibriumX + displacement;
+        const compression = .45 + .55 * Math.cos(q * Math.PI * 7 - t * 3.0);
+        ctx.strokeStyle = `rgba(205,236,244,${.18 + .42 * compression})`;
+        ctx.lineWidth = 1.4 + 1.6 * compression;
+        ctx.beginPath();
+        ctx.moveTo(x, airTop);
+        ctx.lineTo(x, airBottom);
+        ctx.stroke();
+      }
+
+      // Frentes de onda luminosa: proyección bidimensional de superficies
+      // esféricas que nacen en la esquina superior izquierda y se expanden.
+      const maxR = Math.hypot(W, H) * 1.05;
+      const spacing = Math.max(75, W * .095);
+      const travel = (t * 115) % spacing;
+      ctx.lineCap = "round";
+      for (let r = travel; r < maxR; r += spacing) {
+        const alpha = Math.max(.08, .72 * (1 - r / maxR));
+        const glow = ctx.createLinearGradient(x0, y0, x0 + r, y0 + r);
+        glow.addColorStop(0, `rgba(255,238,126,${alpha})`);
+        glow.addColorStop(.55, `rgba(105,222,255,${alpha})`);
+        glow.addColorStop(1, `rgba(102,175,255,${alpha * .55})`);
+        ctx.strokeStyle = glow;
+        ctx.lineWidth = 5;
+        ctx.shadowColor = "rgba(109,220,255,.75)";
+        ctx.shadowBlur = 14;
+        ctx.beginPath();
+        ctx.arc(x0, y0, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+
+      // Fuente luminosa en la esquina de origen.
+      const sourceGlow = ctx.createRadialGradient(x0, y0, 2, x0, y0, 34);
+      sourceGlow.addColorStop(0, "rgba(255,255,230,1)");
+      sourceGlow.addColorStop(.25, "rgba(255,230,90,.95)");
+      sourceGlow.addColorStop(1, "rgba(255,210,50,0)");
+      ctx.fillStyle = sourceGlow;
+      ctx.beginPath();
+      ctx.arc(x0, y0, 34, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = "rgba(5,13,20,.82)";
+      roundedRect(W * .075, H * .735, W * .80, 56, 10);
+      ctx.fill();
+      ctx.font = `800 ${Math.max(15, W * .016)}px Segoe UI`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = COLORS.yellow;
+      ctx.fillText("COEXISTEN EN EL MISMO ESPACIO, PERO NO SE SUPERPONEN ENTRE SÍ", W * .475, H * .735 + 28);
+      ctx.restore();
+    }
+
+    function drawFinalOverlay() {
+      if (state.finalWord <= .01) return;
+      ctx.save();
+      const alpha = state.finalWord;
+      ctx.fillStyle = `rgba(255,255,255,${.80 * alpha})`;
+      roundedRect(W * .20, H * .16, W * .60, H * .17, 18);
+      ctx.fill();
+      ctx.strokeStyle = `rgba(210,31,43,${alpha})`;
+      ctx.lineWidth = 5;
+      ctx.stroke();
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = `rgba(17,17,17,${alpha})`;
+      const finalFontSize = state.finalText.length > 18
+        ? Math.max(22, W * .028)
+        : Math.max(28, W * .047);
+      ctx.font = `900 ${finalFontSize}px Segoe UI`;
+      ctx.fillText(state.finalText, W * .5, H * .245);
+      ctx.restore();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      drawMetallicFrame();
+
+      if (state.scene === "intro") drawIntro();
+      if (state.scene === "bodies") drawBodies();
+      if (state.scene === "rope") drawRope();
+      if (state.scene === "water") drawWater();
+      if (state.scene === "waveSuperposition") drawWaveSuperposition();
+      if (state.scene === "differentNature") drawDifferentNature();
+
+      drawFinalOverlay();
+    }
+
+    function renderLoop(timestamp) {
+      const dt = Math.min((timestamp - lastFrame) / 1000, .05);
+      lastFrame = timestamp;
+      if (!paused) state.time += dt;
+      if (simulationRunning && !timedControlsVisible && state.time >= 60) {
+        showTimedControls();
+      }
+      draw();
+      animationFrameId = requestAnimationFrame(renderLoop);
+    }
+
+    function showTimedControls() {
+      timedControlsVisible = true;
+      repeatBtn.classList.add("visible");
+      pauseBtn.classList.add("visible");
+      exitBtn.classList.add("visible");
+      repeatBtn.disabled = false;
+      pauseBtn.disabled = false;
+    }
+
+    function hideTimedControls() {
+      timedControlsVisible = false;
+      repeatBtn.classList.remove("visible");
+      pauseBtn.classList.remove("visible");
+      exitBtn.classList.remove("visible");
+    }
+
+    /* ============================================================
+       ACCIONES VISUALES SINCRONIZADAS
+       ============================================================ */
+    async function phaseIntro(thisRun) {
+      state.scene = "intro";
+      hideSceneLabel();
+      clearBoard();
+      await tween(1250, t => { state.introStrength = easeOutCubic(t); }, easeInOut, thisRun);
+    }
+
+    async function phaseBodies(thisRun) {
+      state.scene = "bodies";
+      hideSceneLabel();
+      clearBoard();
+      addBoardItem("Dos cuerpos no pueden ocupar el mismo lugar en el espacio al mismo tiempo.", { delay: 150 });
+
+      state.bodyA = .34;
+      state.bodyB = .78;
+      state.bodyArrow = 0;
+      state.bodyAVisible = true;
+      state.bodyBVisible = true;
+
+      await sleep(900, thisRun);
+      await tween(1600, t => { state.bodyArrow = t; }, easeInOut, thisRun);
+      await tween(2100, t => {
+        state.bodyB = lerp(.78, .46, t);
+      }, easeInOut, thisRun);
+      await sleep(450, thisRun);
+      await tween(1400, t => {
+        state.bodyA = lerp(.34, .19, t);
+        state.bodyB = lerp(.46, .34, t);
+      }, easeInOut, thisRun);
+    }
+
+    async function phaseTransition(thisRun) {
+      setSceneLabel("En las ondas ocurre algo diferente");
+      await tween(800, t => {
+        state.introStrength = 1 - t;
+      }, easeInOut, thisRun);
+      state.scene = "rope";
+      state.ropeOpacity = 0;
+      state.pulseAVisible = false;
+      state.pulseBVisible = false;
+      clearBoard();
+      addBoardItem("Las perturbaciones ondulatorias sí pueden coexistir en una misma región del medio.", { delay: 220 });
+      await tween(950, t => { state.ropeOpacity = t; }, easeInOut, thisRun);
+    }
+
+    async function phasePulseA(thisRun) {
+      state.scene = "rope";
+      setSceneLabel("Pulso A");
+      clearBoard();
+      addBoardItem("El pulso A se propaga desde la izquierda.", { delay: 120 });
+      addBoardItem("La animación se detiene momentáneamente para observar su forma.", { delay: 600 });
+
+      state.pulseAVisible = true;
+      state.pulseBVisible = false;
+      state.showResultant = false;
+      state.showComponents = false;
+      state.pulseA = .06;
+      state.zoneGlow = .32;
+
+      await sleep(850, thisRun);
+      await tween(4400, t => {
+        state.pulseA = lerp(.06, .50, t);
+        state.zoneGlow = lerp(.28, .95, t);
+      }, easeInOut, thisRun);
+      state.pulseA = .50;
+      state.zoneGlow = 1;
+    }
+
+    async function phasePulseB(thisRun) {
+      setSceneLabel("Pulso B");
+      clearBoard();
+      addBoardItem("El pulso B se propaga desde la derecha.", { delay: 120 });
+      addBoardItem("Conserva su forma durante la propagación.", { delay: 580 });
+
+      state.pulseAVisible = false;
+      state.pulseBVisible = true;
+      state.pulseB = .94;
+      state.showResultant = false;
+      state.showComponents = false;
+      state.zoneGlow = .30;
+
+      await sleep(750, thisRun);
+      await tween(4500, t => {
+        state.pulseB = lerp(.94, .50, t);
+        state.zoneGlow = lerp(.28, .95, t);
+      }, easeInOut, thisRun);
+      state.pulseB = .50;
+      state.zoneGlow = 1;
+    }
+
+    async function phaseEncounterStart(thisRun) {
+      setSceneLabel("Los pulsos se aproximan");
+      clearBoard();
+      addBoardItem("A y B avanzan en sentidos opuestos.", { delay: 120 });
+      addBoardItem("Los dos pulsos tienen inicialmente la misma forma y amplitud.", { delay: 520 });
+
+      state.pulseAVisible = true;
+      state.pulseBVisible = true;
+      state.pulseA = .06;
+      state.pulseB = .94;
+      state.showResultant = false;
+      state.showComponents = false;
+      state.zoneGlow = .25;
+
+      await sleep(700, thisRun);
+      await tween(4700, t => {
+        state.pulseA = lerp(.06, .42, t);
+        state.pulseB = lerp(.94, .58, t);
+        state.zoneGlow = lerp(.25, .62, t);
+      }, easeInOut, thisRun);
+    }
+
+    async function phaseOverlap(thisRun) {
+      setSceneLabel("Coincidencia en la región roja");
+      clearBoard();
+      addBoardItem("En la coincidencia aparece una sola deformación resultante.", { delay: 120 });
+      addBoardItem("La coincidencia es temporal.", { delay: 650 });
+
+      state.showComponents = true;
+      await tween(1350, t => {
+        state.pulseA = lerp(.42, .50, t);
+        state.pulseB = lerp(.58, .50, t);
+        state.zoneGlow = lerp(.62, 1, t);
+      }, easeInOut, thisRun);
+      state.showResultant = true;
+      state.pulseA = .50;
+      state.pulseB = .50;
+      await sleep(900, thisRun);
+    }
+
+    async function phaseCoexistence(thisRun) {
+      setSceneLabel("Superposición temporal");
+      clearBoard();
+      addBoardItem("Las perturbaciones coexisten en la misma región de la cuerda.", { delay: 120 });
+      addBoardItem("La deformación resultante es la suma de las deformaciones individuales.", { delay: 600 });
+      addBoardItem("y = y<sub>A</sub> + y<sub>B</sub>", { formula: true, delay: 1050 });
+
+      state.showResultant = true;
+      state.showComponents = true;
+      state.zoneGlow = 1;
+
+      for (let i = 0; i < 3; i++) {
+        await tween(650, t => {
+          state.baseAmp = lerp(82, 87, t);
+        }, easeInOut, thisRun);
+        await tween(650, t => {
+          state.baseAmp = lerp(87, 82, t);
+        }, easeInOut, thisRun);
+      }
+    }
+
+    async function phaseSeparation(thisRun) {
+      setSceneLabel("Los pulsos continúan su camino");
+      clearBoard();
+      addBoardItem("Después de coincidir, A continúa hacia la derecha.", { delay: 120 });
+      addBoardItem("B continúa hacia la izquierda.", { delay: 520 });
+      addBoardItem("En este modelo ideal, ambos conservan sus características.", { delay: 920 });
+
+      state.showResultant = false;
+      state.showComponents = false;
+      state.zoneGlow = 1;
+
+      await tween(5100, t => {
+        state.pulseA = lerp(.50, .94, t);
+        state.pulseB = lerp(.50, .06, t);
+        state.zoneGlow = lerp(1, .25, t);
+      }, easeInOut, thisRun);
+    }
+
+    async function phaseVerification(thisRun) {
+      setSceneLabel("Comprobación: antes, durante y después");
+      clearBoard();
+      addBoardItem("Antes: dos pulsos separados.", { delay: 120 });
+      addBoardItem("Durante: una deformación resultante.", { delay: 520 });
+      addBoardItem("Después: los mismos pulsos continúan sin deformación permanente.", { delay: 920 });
+
+      for (let cycle = 0; cycle < 2; cycle++) {
+        state.pulseA = .06;
+        state.pulseB = .94;
+        state.showResultant = false;
+        state.showComponents = false;
+        await tween(4200, t => {
+          state.pulseA = lerp(.06, .50, t);
+          state.pulseB = lerp(.94, .50, t);
+          state.zoneGlow = lerp(.25, 1, t);
+        }, easeInOut, thisRun);
+        state.showResultant = true;
+        state.showComponents = true;
+        await sleep(1600, thisRun);
+        state.showResultant = false;
+        state.showComponents = false;
+        await tween(4200, t => {
+          state.pulseA = lerp(.50, .94, t);
+          state.pulseB = lerp(.50, .06, t);
+          state.zoneGlow = lerp(1, .25, t);
+        }, easeInOut, thisRun);
+        await sleep(450, thisRun);
+      }
+    }
+
+    async function phaseDefinition(thisRun) {
+      setSceneLabel("Definición");
+      clearBoard();
+      addBoardItem("Superposición: coincidencia de dos o más perturbaciones en una región del medio.", { delay: 150 });
+      addBoardItem("El desplazamiento resultante es la suma algebraica de los desplazamientos individuales.", { delay: 620 });
+      addBoardItem("Después, cada pulso conserva sus propiedades.", { delay: 1050 });
+      addBoardItem("y = y<sub>A</sub> + y<sub>B</sub>", { formula: true, delay: 1450 });
+
+      state.pulseA = .50;
+      state.pulseB = .50;
+      state.pulseAVisible = true;
+      state.pulseBVisible = true;
+      state.showResultant = true;
+      state.showComponents = true;
+      state.zoneGlow = 1;
+
+      await tween(1400, t => { state.finalWord = easeOutCubic(t); }, easeInOut, thisRun);
+      await sleep(1800, thisRun);
+    }
+
+
+    function configureRopePulses({
+      ampA = 1,
+      ampB = 1,
+      widthA = 1,
+      widthB = 1,
+      signA = 1,
+      signB = 1,
+      label = "PULSO RESULTANTE"
+    } = {}) {
+      state.scene = "rope";
+      state.ropeOpacity = 1;
+      state.pulseAVisible = true;
+      state.pulseBVisible = true;
+      state.pulseAScale = ampA;
+      state.pulseBScale = ampB;
+      state.pulseAWidth = widthA;
+      state.pulseBWidth = widthB;
+      state.pulseASign = signA;
+      state.pulseBSign = signB;
+      state.resultLabel = label;
+      state.showResultant = false;
+      state.showComponents = false;
+      state.showZone = true;
+      state.zoneGlow = .25;
+      state.finalWord = 0;
+    }
+
+    async function animateRopeEncounter(thisRun, {
+      approach = 3600,
+      hold = 1500,
+      separation = 3600,
+      startA = .06,
+      startB = .94,
+      endA = .94,
+      endB = .06
+    } = {}) {
+      state.pulseA = startA;
+      state.pulseB = startB;
+      state.showResultant = false;
+      state.zoneGlow = .25;
+
+      await tween(approach, t => {
+        state.pulseA = lerp(startA, .50, t);
+        state.pulseB = lerp(startB, .50, t);
+        state.zoneGlow = lerp(.25, 1, t);
+      }, easeInOut, thisRun);
+
+      state.pulseA = .50;
+      state.pulseB = .50;
+      state.showResultant = true;
+      await sleep(hold, thisRun);
+      state.showResultant = false;
+
+      await tween(separation, t => {
+        state.pulseA = lerp(.50, endA, t);
+        state.pulseB = lerp(.50, endB, t);
+        state.zoneGlow = lerp(1, .25, t);
+      }, easeInOut, thisRun);
+    }
+
+    async function phaseInvertedPulses(thisRun, replay = false) {
+      configureRopePulses({
+        ampA: 1,
+        ampB: 1,
+        widthA: 1,
+        widthB: 1,
+        signA: 1,
+        signB: -1,
+        label: "ANULACIÓN"
+      });
+      setSceneLabel(replay ? "Repetición: superposición con pulso invertido" : "Superposición con un pulso invertido");
+      clearBoard();
+      addBoardItem("El pulso A se propaga por encima de la posición de equilibrio.", { delay: 120 });
+      addBoardItem("El pulso B se propaga invertido.", { delay: 520 });
+      addBoardItem("En el encuentro, las deformaciones de igual magnitud y sentido opuesto se anulan.", { delay: 920 });
+      addBoardItem("y = y<sub>A</sub> + y<sub>B</sub> = 0", { formula: true, delay: 1320 });
+
+      await animateRopeEncounter(thisRun, {
+        approach: replay ? 3300 : 4300,
+        hold: replay ? 2100 : 2600,
+        separation: replay ? 3300 : 4300
+      });
+    }
+
+    async function phaseDifferentPulses(thisRun, replay = false) {
+      state.finalWord = 0;
+      setSceneLabel(replay ? "Repetición: pulsos diferentes" : "Pulsos con diferentes amplitudes y anchos");
+      clearBoard();
+      addBoardItem("La superposición también ocurre entre pulsos diferentes.", { delay: 120 });
+      addBoardItem("La deformación resultante depende de la amplitud, el ancho y el sentido de cada pulso.", { delay: 620 });
+
+      configureRopePulses({
+        ampA: .72,
+        ampB: 1.18,
+        widthA: .72,
+        widthB: 1.42,
+        signA: 1,
+        signB: 1,
+        label: "SUMA DE PULSOS DIFERENTES"
+      });
+      await animateRopeEncounter(thisRun, {
+        approach: replay ? 2600 : 3600,
+        hold: replay ? 1300 : 1800,
+        separation: replay ? 2600 : 3400
+      });
+
+      await sleep(replay ? 650 : 1100, thisRun);
+      setSceneLabel("Pulsos diferentes en contrafase");
+      clearBoard();
+      addBoardItem("Las amplitudes y los anchos son diferentes.", { delay: 120 });
+      addBoardItem("Las deformaciones tienen sentidos opuestos.", { delay: 520 });
+      addBoardItem("La anulación es parcial, no total.", { delay: 920 });
+      addBoardItem("y = y<sub>A</sub> + y<sub>B</sub>", { formula: true, delay: 1320 });
+
+      configureRopePulses({
+        ampA: .72,
+        ampB: 1.18,
+        widthA: .72,
+        widthB: 1.42,
+        signA: 1,
+        signB: -1,
+        label: "SUPERPOSICIÓN PARCIAL"
+      });
+      await animateRopeEncounter(thisRun, {
+        approach: replay ? 2600 : 3600,
+        hold: replay ? 1500 : 2100,
+        separation: replay ? 2600 : 3400
+      });
+    }
+
+    async function animateWaterCycle(thisRun, mode, {
+      duration = 5200,
+      hold = 1800
+    } = {}) {
+      state.scene = "water";
+      state.waterMode = mode;
+      state.waterProgress = 0;
+      state.waterOverlap = 0;
+      state.waterSplash = 1;
+      state.finalWord = 0;
+
+      await tween(700, t => {
+        state.waterSplash = 1 - t;
+        state.waterProgress = lerp(0, .10, t);
+      }, easeOutCubic, thisRun);
+
+      await tween(duration, t => {
+        state.waterProgress = lerp(.10, 1.05, t);
+        state.waterOverlap = clamp((t - .40) / .22, 0, 1);
+      }, easeInOut, thisRun);
+
+      await sleep(hold, thisRun);
+      await tween(700, t => {
+        state.waterOverlap = 1 - t;
+      }, easeInOut, thisRun);
+    }
+
+    async function phaseWaterIntroduction(thisRun) {
+      state.scene = "water";
+      state.waterMode = "inPhase";
+      state.waterProgress = 0;
+      state.waterOverlap = 0;
+      state.waterSplash = 1;
+      state.finalWord = 0;
+      setSceneLabel("Superposición de pulsos en el agua");
+      clearBoard();
+      addBoardItem("Dos piedras producen pulsos circulares en la superficie del agua.", { delay: 120 });
+      addBoardItem("Los pulsos se propagan desde extremos opuestos.", { delay: 620 });
+      addBoardItem("La zona central será la región de encuentro.", { delay: 1120 });
+
+      await tween(850, t => {
+        state.waterSplash = 1 - t;
+        state.waterProgress = lerp(0, .12, t);
+      }, easeOutCubic, thisRun);
+      await tween(4000, t => {
+        state.waterProgress = lerp(.12, .60, t);
+      }, easeInOut, thisRun);
+    }
+
+    async function phaseWaterInPhase(thisRun) {
+      setSceneLabel("Pulsos en fase: aumento de amplitud");
+      clearBoard();
+      addBoardItem("En fase: las perturbaciones tienen el mismo sentido.", { delay: 120 });
+      addBoardItem("En la región de encuentro aumenta la amplitud.", { delay: 620 });
+      addBoardItem("La simulación se repite dos veces.", { delay: 1120 });
+
+      for (let cycle = 0; cycle < 2; cycle++) {
+        await animateWaterCycle(thisRun, "inPhase", {
+          duration: 4300,
+          hold: 1700
+        });
+        await sleep(500, thisRun);
+      }
+    }
+
+    async function phaseWaterOutPhase(thisRun) {
+      setSceneLabel("Pulsos con fase opuesta: anulación");
+      clearBoard();
+      addBoardItem("Fase opuesta: las perturbaciones tienen sentidos contrarios.", { delay: 120 });
+      addBoardItem("Si los desplazamientos son iguales y opuestos, la perturbación desaparece momentáneamente.", { delay: 620 });
+      addBoardItem("La simulación se repite dos veces.", { delay: 1120 });
+
+      for (let cycle = 0; cycle < 2; cycle++) {
+        await animateWaterCycle(thisRun, "outPhase", {
+          duration: 4300,
+          hold: 1900
+        });
+        await sleep(500, thisRun);
+      }
+    }
+
+    async function phaseClosing(thisRun) {
+      state.scene = "differentNature";
+      state.finalText = "PRINCIPIO DE SUPERPOSICIÓN";
+      setSceneLabel("Conclusión");
+      clearBoard();
+      addBoardItem("El principio de superposición se cumple en sistemas con comportamiento aproximadamente lineal.", { delay: 120 });
+      addBoardItem("Solo se suman perturbaciones de la misma naturaleza física.", { delay: 620 });
+      addBoardItem("Perturbaciones diferentes pueden coexistir sin superponerse entre sí.", { delay: 1120 });
+      addBoardItem("La onda mecánica se propaga; el sonido es una sensación.", { delay: 1620 });
+
+      await tween(1500, t => {
+        state.finalWord = easeOutCubic(t);
+      }, easeInOut, thisRun);
+      await sleep(2600, thisRun);
+    }
+
+    /* ============================================================
+       SECUENCIA PRINCIPAL
+       ============================================================ */
+    async function runSimulation() {
+      if (simulationRunning) return;
+
+      const thisRun = ++runId;
+      simulationRunning = true;
+      paused = false;
+      pauseBtn.textContent = "PAUSAR";
+      repeatBtn.textContent = "REGRESAR";
+      startBtn.disabled = true;
+      startBtn.style.display = "none";
+      repeatBtn.disabled = true;
+      pauseBtn.disabled = true;
+      hideTimedControls();
+
+      window.speechSynthesis?.cancel?.();
+      resetState();
+      loadVoices();
+
+      try {
+        music.currentTime = 0;
+        music.volume = 1;
+        const playPromise = music.play();
+        if (playPromise) {
+          await playPromise.catch(() => {
+            showStatus("No se encontró onda.mp3 o el navegador bloqueó el audio. La animación continuará.", 6800);
+          });
+        }
+
+        await phaseIntro(thisRun);
+        await speak(NARRATION.intro, thisRun);
+        await musicalPause(1100, thisRun);
+
+        const bodiesVisual = phaseBodies(thisRun);
+        await Promise.all([bodiesVisual, speak(NARRATION.bodies, thisRun)]);
+        await musicalPause(900, thisRun);
+
+        const transitionVisual = phaseTransition(thisRun);
+        await Promise.all([transitionVisual, speak(NARRATION.transition, thisRun)]);
+        await musicalPause(950, thisRun);
+
+        const pulseAVisual = phasePulseA(thisRun);
+        await Promise.all([pulseAVisual, speak(NARRATION.pulseA, thisRun)]);
+        await musicalPause(3000, thisRun);
+
+        const pulseBVisual = phasePulseB(thisRun);
+        await Promise.all([pulseBVisual, speak(NARRATION.pulseB, thisRun)]);
+        await musicalPause(1500, thisRun);
+
+        const encounterVisual = phaseEncounterStart(thisRun);
+        await Promise.all([encounterVisual, speak(NARRATION.encounterStart, thisRun)]);
+        await musicalPause(650, thisRun);
+
+        const overlapVisual = phaseOverlap(thisRun);
+        await Promise.all([overlapVisual, speak(NARRATION.encounterOverlap, thisRun)]);
+        await musicalPause(700, thisRun);
+
+        const coexistenceVisual = phaseCoexistence(thisRun);
+        await Promise.all([coexistenceVisual, speak(NARRATION.coexistence, thisRun)]);
+        await musicalPause(800, thisRun);
+
+        const separationVisual = phaseSeparation(thisRun);
+        await Promise.all([separationVisual, speak(NARRATION.separation, thisRun)]);
+        await musicalPause(800, thisRun);
+
+        const verificationVisual = phaseVerification(thisRun);
+        await Promise.all([verificationVisual, speak(NARRATION.verification, thisRun)]);
+        await musicalPause(900, thisRun);
+
+        const definitionVisual = phaseDefinition(thisRun);
+        await Promise.all([definitionVisual, speak(NARRATION.definition, thisRun)]);
+        await musicalPause(1400, thisRun);
+
+        setSceneLabel("De los pulsos a las ondas");
+        state.scene = "waveSuperposition";
+        state.finalWord = 0;
+        clearBoard();
+        addBoardItem("Onda 1: longitud de onda mayor; se propaga hacia la derecha.", { delay: 120 });
+        addBoardItem("Onda 2: longitud de onda menor; se propaga hacia la izquierda.", { delay: 620 });
+        addBoardItem("En cada punto: y = y₁ + y₂.", { formula: true, delay: 1120 });
+        await speak(NARRATION.waves, thisRun);
+        await musicalPause(1100, thisRun);
+
+        const invertedVisual = phaseInvertedPulses(thisRun, false);
+        await Promise.all([invertedVisual, speak(NARRATION.inverted, thisRun)]);
+        await musicalPause(2000, thisRun);
+        await phaseInvertedPulses(thisRun, true);
+        await musicalPause(1300, thisRun);
+
+        const differentVisual = phaseDifferentPulses(thisRun, false);
+        await Promise.all([differentVisual, speak(NARRATION.different, thisRun)]);
+        await musicalPause(2200, thisRun);
+        await phaseDifferentPulses(thisRun, true);
+        await musicalPause(1400, thisRun);
+
+        await speak(NARRATION.general, thisRun);
+        await musicalPause(900, thisRun);
+
+        setSceneLabel("Una condición necesaria");
+        state.scene = "differentNature";
+        state.finalWord = 0;
+        clearBoard();
+        addBoardItem("Solo se suman perturbaciones de la misma naturaleza física.", { delay: 120 });
+        addBoardItem("Deben afectar la misma magnitud del sistema.", { delay: 620 });
+        addBoardItem("La luz y una onda mecánica pueden compartir el espacio sin superponerse entre sí.", { delay: 1120 });
+        await speak(NARRATION.sameNature, thisRun);
+        await musicalPause(1200, thisRun);
+
+        const closingVisual = phaseClosing(thisRun);
+        await Promise.all([closingVisual, speak(NARRATION.closing, thisRun)]);
+        await musicalPause(1900, thisRun);
+
+        if (thisRun === runId) {
+          setSceneLabel("Aquí termina este video");
+          showTimedControls();
+          repeatBtn.textContent = "REPETIR";
+          pauseBtn.disabled = true;
+          repeatBtn.disabled = false;
+          startBtn.disabled = true;
+        }
+      } catch (error) {
+        if (error.message !== "RUN_CANCELLED") {
+          console.error(error);
+          showStatus("La simulación se interrumpió por un error inesperado.", 6000);
+        }
+      } finally {
+        if (thisRun === runId) {
+          simulationRunning = false;
+          repeatBtn.disabled = false;
+          pauseBtn.disabled = true;
+          music.volume = 1;
+        }
+      }
+    }
+
+    function cancelCurrentRun() {
+      runId++;
+      simulationRunning = false;
+      paused = false;
+      window.speechSynthesis?.cancel?.();
+      music.pause();
+      pauseBtn.textContent = "PAUSAR";
+      pauseBtn.disabled = true;
+      startBtn.disabled = false;
+      startBtn.style.display = "block";
+      repeatBtn.disabled = false;
+    }
+
+    async function repeatSimulation() {
+      cancelCurrentRun();
+      await sleep(120, runId).catch(() => {});
+      runSimulation();
+    }
+
+    function togglePause() {
+      if (!simulationRunning) return;
+      paused = !paused;
+
+      if (paused) {
+        window.speechSynthesis?.pause?.();
+        music.pause();
+        pauseBtn.textContent = "CONTINUAR";
+        setSceneLabel("Simulación en pausa");
+      } else {
+        window.speechSynthesis?.resume?.();
+        music.play().catch(() => {});
+        pauseBtn.textContent = "PAUSAR";
+      }
+    }
+
+    function exitSimulation() {
+      cancelCurrentRun();
+      window.close();
+      window.setTimeout(() => {
+        resetState();
+        setSceneLabel("La ventana no pudo cerrarse automáticamente");
+        showStatus("El navegador solo permite cerrar ventanas abiertas mediante JavaScript.", 6500);
+      }, 250);
+    }
+
+    startBtn.addEventListener("click", runSimulation);
+    repeatBtn.addEventListener("click", repeatSimulation);
+    pauseBtn.addEventListener("click", togglePause);
+    exitBtn.addEventListener("click", exitSimulation);
+    window.addEventListener("resize", resizeCanvas);
+
+    resizeCanvas();
+    resetState();
+    renderLoop(performance.now());
+
+    window.addEventListener("beforeunload", () => {
+      cancelAnimationFrame(animationFrameId);
+      window.speechSynthesis?.cancel?.();
+      music.pause();
+    });
+  </script>
+</body>
+</html>

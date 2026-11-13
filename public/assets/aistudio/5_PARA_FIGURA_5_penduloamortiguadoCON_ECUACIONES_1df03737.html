@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Péndulo simple — Movimiento armónico amortiguado</title>
+
+  <!-- MathJax: requiere conexión a Internet para renderizar LaTeX. -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+  <style>
+    :root{
+      --fondo:#07101c;
+      --panel:#111d2b;
+      --pizarra:#15382d;
+      --tiza:#f4f6ef;
+      --tiza-suave:#d8e4dc;
+      --dorado:#f5c451;
+      --rojo:#f05a5a;
+      --verde:#67d391;
+      --azul:#69b8ff;
+      --gris:#9fb0c4;
+    }
+
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--fondo);font-family:"Segoe UI",Arial,sans-serif}
+    body{color:#fff}
+
+    #app{
+      width:100vw;
+      height:100vh;
+      display:flex;
+      flex-direction:column;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(84,125,180,.14), transparent 34%),
+        linear-gradient(135deg,#07101c,#0b1421 58%,#07101c);
+    }
+
+    #main{
+      flex:1;
+      min-height:0;
+      display:grid;
+      grid-template-columns:46% 54%;
+      gap:12px;
+      padding:14px 16px 16px;
+    }
+
+    #leftPanel{
+      position:relative;
+      overflow:hidden;
+      border-radius:18px;
+      background:
+        radial-gradient(circle at 50% 30%,rgba(255,255,255,.06),transparent 38%),
+        linear-gradient(180deg,#132235,#0b1522);
+      box-shadow:0 14px 35px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.07);
+    }
+
+    #sceneCanvas{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+    }
+
+    #scaleInfo{
+      position:absolute;
+      left:16px;
+      bottom:14px;
+      padding:8px 11px;
+      border-radius:10px;
+      background:rgba(0,0,0,.36);
+      color:#dbe8f5;
+      font-size:13px;
+      line-height:1.45;
+      backdrop-filter:blur(4px);
+    }
+
+    #amplitudeReadout{
+      position:absolute;
+      right:16px;
+      bottom:14px;
+      min-width:150px;
+      padding:9px 12px;
+      border-radius:10px;
+      background:rgba(0,0,0,.42);
+      color:#fff;
+      font-size:14px;
+      text-align:center;
+      opacity:0;
+      transition:opacity .35s ease;
+    }
+    #amplitudeReadout.show{opacity:1}
+
+    .forceLabel{
+      position:absolute;
+      z-index:8;
+      padding:2px 5px;
+      border-radius:5px;
+      background:rgba(5,10,16,.58);
+      color:white;
+      font-size:17px;
+      opacity:0;
+      transform:translate(-50%,-50%);
+      transition:opacity .35s ease;
+      pointer-events:none;
+      white-space:nowrap;
+    }
+    .forceLabel.show{opacity:1}
+    #labelMg{color:#fff}
+    #labelMgCos{color:#ddd}
+    #labelMgSin{color:#ff7777}
+    #labelFriction{color:#6fc8ff}
+    #labelTension{color:#72e3a4}
+
+    #rightPanel{
+      min-width:0;
+      min-height:0;
+      display:flex;
+      flex-direction:column;
+    }
+
+    #title{
+      flex:0 0 auto;
+      margin:0 0 8px;
+      padding:6px 12px 8px;
+      text-align:center;
+      font-size:clamp(20px,2.1vw,31px);
+      font-weight:650;
+      letter-spacing:.2px;
+      color:#f7f8fa;
+      text-shadow:0 2px 10px rgba(0,0,0,.5);
+    }
+
+    #board{
+      position:relative;
+      flex:1;
+      min-height:0;
+      overflow:hidden;
+      border:12px solid #6b4629;
+      border-radius:14px;
+      padding:23px 25px;
+      background:
+        linear-gradient(rgba(255,255,255,.018),rgba(255,255,255,.018)),
+        repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 4px),
+        var(--pizarra);
+      box-shadow:
+        inset 0 0 34px rgba(0,0,0,.42),
+        0 16px 35px rgba(0,0,0,.34);
+    }
+
+    #board::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background:
+        radial-gradient(circle at 15% 20%,rgba(255,255,255,.035),transparent 28%),
+        radial-gradient(circle at 76% 67%,rgba(255,255,255,.025),transparent 32%);
+      mix-blend-mode:screen;
+    }
+
+    #boardContent{
+      position:relative;
+      z-index:2;
+      height:100%;
+      overflow:auto;
+      scrollbar-width:thin;
+      scrollbar-color:rgba(255,255,255,.35) transparent;
+      color:var(--tiza);
+      font-size:clamp(17px,1.35vw,23px);
+      line-height:1.38;
+    }
+
+    .boardLine{
+      margin:0 0 12px;
+      font-style:italic;
+      opacity:0;
+      transform:translateY(7px);
+      animation:chalkIn .55s ease forwards;
+    }
+
+    .boardEquation{
+      margin:11px 0 15px;
+      padding:4px 8px;
+      text-align:center;
+      color:#fff;
+      font-size:1.1em;
+      opacity:0;
+      transform:translateY(7px);
+      animation:chalkIn .55s ease forwards;
+    }
+
+    .boardHeading{
+      margin:0 0 15px;
+      padding-bottom:7px;
+      border-bottom:1px dashed rgba(255,255,255,.35);
+      text-align:center;
+      font-size:1.16em;
+      font-style:italic;
+      font-weight:650;
+      opacity:0;
+      animation:chalkIn .55s ease forwards;
+    }
+
+    .highlight{color:#ffe58b}
+    .restoring{color:#ff9a9a}
+    .damping{color:#8bd2ff}
+    .condition{color:#91edb1}
+
+    @keyframes chalkIn{
+      to{opacity:1;transform:translateY(0)}
+    }
+
+    #graphCanvas{
+      display:none;
+      width:100%;
+      height:calc(100% - 185px);
+      min-height:260px;
+      margin-top:8px;
+      border-radius:8px;
+      background:rgba(0,0,0,.10);
+    }
+
+    #graphInfo{
+      display:none;
+      margin-top:10px;
+      padding:6px 10px 0;
+      color:var(--tiza);
+      text-align:center;
+      font-style:italic;
+    }
+
+    #graphInfo .graphEq{
+      margin:4px 0;
+      font-size:1.02em;
+      color:#fff;
+    }
+
+    #graphInfo .graphParams{
+      margin:6px 0 0;
+      font-size:.9em;
+      color:#e9f1fb;
+      line-height:1.35;
+    }
+
+    #controls{
+      position:absolute;
+      z-index:30;
+      left:50%;
+      bottom:22px;
+      transform:translateX(-50%);
+      display:none;
+      gap:16px;
+    }
+
+    #controls.show{display:flex}
+
+    button{
+      min-width:140px;
+      padding:13px 22px;
+      border:0;
+      border-radius:999px;
+      font-size:17px;
+      font-weight:750;
+      letter-spacing:.5px;
+      cursor:pointer;
+      box-shadow:0 8px 24px rgba(0,0,0,.35);
+      transition:transform .15s ease,filter .15s ease;
+    }
+    button:hover{transform:translateY(-2px);filter:brightness(1.08)}
+    button:active{transform:translateY(0)}
+    #repeatBtn{background:#f3c55f;color:#17202d}
+    #exitBtn{background:#d84f59;color:#fff}
+
+    #startOverlay,#endOverlay{
+      position:fixed;
+      z-index:100;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+      gap:16px;
+      background:rgba(4,8,13,.92);
+      text-align:center;
+      padding:24px;
+    }
+
+    #startOverlay.show,#endOverlay.show{display:flex}
+    #startOverlay h2,#endOverlay h2{margin:0;font-size:clamp(25px,4vw,44px)}
+    #startOverlay p,#endOverlay p{margin:0;max-width:680px;color:#dce6f3;font-size:17px;line-height:1.5}
+    #startBtn{background:#65d19a;color:#082016}
+
+    #status{
+      position:fixed;
+      z-index:50;
+      top:10px;
+      left:12px;
+      padding:6px 9px;
+      border-radius:8px;
+      background:rgba(0,0,0,.28);
+      color:#cbd8e7;
+      font-size:12px;
+      opacity:.75;
+      pointer-events:none;
+    }
+
+    @media (max-width:900px){
+      #main{grid-template-columns:1fr;grid-template-rows:44% 56%;gap:8px;padding:8px}
+      #title{font-size:20px;margin-bottom:4px;padding:2px 8px 4px}
+      #board{border-width:8px;padding:14px 16px}
+      #scaleInfo{font-size:11px}
+      .forceLabel{font-size:14px}
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="main">
+    <section id="leftPanel" aria-label="Animación del péndulo">
+      <canvas id="sceneCanvas"></canvas>
+
+      <div id="labelMg" class="forceLabel">\( \vec{F}_g=m\vec{g} \)</div>
+      <div id="labelMgCos" class="forceLabel">\( mg\cos\theta \)</div>
+      <div id="labelMgSin" class="forceLabel">\( mg\sin\theta \)</div>
+      <div id="labelFriction" class="forceLabel">\( \vec{F}_r=-b\vec{v} \)</div>
+      <div id="labelTension" class="forceLabel">\( \vec{T} \)</div>
+
+      <div id="scaleInfo">
+        \(L=1\,\mathrm{m}\)<br>
+        \(A_0=4\,\mathrm{cm}\)<br>
+        esfera: \(0{,}5\,\mathrm{cm}\)
+      </div>
+
+      <div id="amplitudeReadout">
+        Amplitud: <strong id="ampValue">4,00 cm</strong>
+      </div>
+    </section>
+
+    <section id="rightPanel">
+      <h1 id="title">Péndulo simple. Movimiento armónico amortiguado</h1>
+      <div id="board">
+        <div id="boardContent"></div>
+        <canvas id="graphCanvas"></canvas>
+        <div id="graphInfo"></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="controls">
+    <button id="repeatBtn">REPETIR</button>
+    <button id="exitBtn">SALIR</button>
+  </div>
+</div>
+
+<div id="startOverlay">
+  <h2>Péndulo simple</h2>
+  <p>El navegador bloqueó la reproducción automática. Pulsa el botón para iniciar la música, la animación y las locuciones.</p>
+  <button id="startBtn">INICIAR</button>
+</div>
+
+<div id="endOverlay">
+  <h2>Programa finalizado</h2>
+  <p>El navegador no permite cerrar automáticamente una pestaña que no fue abierta por el propio programa. Puede cerrar esta pestaña de forma manual.</p>
+</div>
+
+<div id="status">Preparando…</div>
+
+<audio id="music" src="onda.mp3" preload="auto" loop></audio>
+
+<script>
+(() => {
+  "use strict";
+
+  // ============================================================
+  // CONFIGURACIÓN FÍSICA
+  // ============================================================
+  const PHYS = {
+    L: 1,                // m
+    A0cm: 4,             // cm
+    gamma: 0.20,         // s^-1
+    omega: 3.12,         // rad/s: frecuencia angular real de la oscilación, Ω
+    g: 9.8,              // m/s^2
+    visualAmplitude: 4.5 // amplificación exclusivamente gráfica; A0 sigue siendo 4 cm
+  };
+
+  const canvas = document.getElementById("sceneCanvas");
+  const ctx = canvas.getContext("2d");
+  const leftPanel = document.getElementById("leftPanel");
+  const boardContent = document.getElementById("boardContent");
+  const graphCanvas = document.getElementById("graphCanvas");
+  const graphCtx = graphCanvas.getContext("2d");
+  const graphInfo = document.getElementById("graphInfo");
+  const music = document.getElementById("music");
+  const controls = document.getElementById("controls");
+  const repeatBtn = document.getElementById("repeatBtn");
+  const exitBtn = document.getElementById("exitBtn");
+  const startOverlay = document.getElementById("startOverlay");
+  const startBtn = document.getElementById("startBtn");
+  const endOverlay = document.getElementById("endOverlay");
+  const statusBox = document.getElementById("status");
+  const ampBox = document.getElementById("amplitudeReadout");
+  const ampValue = document.getElementById("ampValue");
+
+  const labels = {
+    mg: document.getElementById("labelMg"),
+    mgCos: document.getElementById("labelMgCos"),
+    mgSin: document.getElementById("labelMgSin"),
+    friction: document.getElementById("labelFriction"),
+    tension: document.getElementById("labelTension")
+  };
+
+  const state = {
+    running: false,
+    cancelled: false,
+    mode: "equilibrium", // equilibrium | oscillating | forces | persistent
+    simStart: performance.now(),
+    simOffset: 0,
+    timeScale: 1,
+    frozenTheta: Math.asin(Math.min(0.999, PHYS.visualAmplitude * PHYS.A0cm / 100 / PHYS.L)),
+    forceVisibility: {
+      mg: false,
+      mgCos: false,
+      mgSin: false,
+      friction: false,
+      tension: false
+    },
+    graphProgress: 0,
+    graphAnimating: false,
+    handVisible: false,
+    handTheta: 0,
+    handPromise: null,
+    finalTimer: null,
+    animationId: null
+  };
+
+  let selectedVoice = null;
+  let currentUtterance = null;
+
+  // ============================================================
+  // UTILIDADES GENERALES
+  // ============================================================
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  function formatComma(value, digits = 2){
+    return value.toFixed(digits).replace(".", ",");
+  }
+
+  function setStatus(text){
+    statusBox.textContent = text;
+  }
+
+  function checkCancelled(){
+    if(state.cancelled) throw new Error("SEQUENCE_CANCELLED");
+  }
+
+  function resetSimulation(t = 0, timeScale = 1){
+    state.simOffset = t;
+    state.simStart = performance.now();
+    state.timeScale = timeScale;
+  }
+
+  function simulationTime(now = performance.now()){
+    return state.simOffset + ((now - state.simStart) / 1000) * state.timeScale;
+  }
+
+  function resizeCanvas(){
+    const rect = leftPanel.getBoundingClientRect();
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    canvas.style.width = rect.width + "px";
+    canvas.style.height = rect.height + "px";
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+
+    resizeGraph();
+  }
+
+  function resizeGraph(){
+    if(graphCanvas.style.display === "none") return;
+    const rect = graphCanvas.getBoundingClientRect();
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    graphCanvas.width = Math.max(1,Math.round(rect.width * dpr));
+    graphCanvas.height = Math.max(1,Math.round(rect.height * dpr));
+    graphCtx.setTransform(dpr,0,0,dpr,0,0);
+    drawGraph(state.graphProgress);
+  }
+
+  window.addEventListener("resize", resizeCanvas);
+
+  async function typeset(element = document.body){
+    if(window.MathJax?.typesetPromise){
+      try{
+        await MathJax.typesetPromise([element]);
+      }catch(err){
+        console.warn("MathJax:", err);
+      }
+    }
+  }
+
+  // ============================================================
+  // PIZARRA
+  // ============================================================
+  async function clearBoard(){
+    boardContent.innerHTML = "";
+    boardContent.style.display = "block";
+    graphCanvas.style.display = "none";
+    graphInfo.style.display = "none";
+    graphInfo.innerHTML = "";
+    state.graphAnimating = false;
+    state.graphProgress = 0;
+    await wait(100);
+  }
+
+  async function addBoardHeading(html){
+    const div = document.createElement("div");
+    div.className = "boardHeading";
+    div.innerHTML = html;
+    boardContent.appendChild(div);
+    await typeset(div);
+    boardContent.scrollTop = boardContent.scrollHeight;
+    return div;
+  }
+
+  async function addBoardText(html){
+    const div = document.createElement("div");
+    div.className = "boardLine";
+    div.innerHTML = html;
+    boardContent.appendChild(div);
+    await typeset(div);
+    boardContent.scrollTop = boardContent.scrollHeight;
+    return div;
+  }
+
+  async function addBoardEquation(latex, extraClass = ""){
+    const div = document.createElement("div");
+    div.className = "boardEquation " + extraClass;
+    div.innerHTML = "\\[" + latex + "\\]";
+    boardContent.appendChild(div);
+    await typeset(div);
+    boardContent.scrollTop = boardContent.scrollHeight;
+    return div;
+  }
+
+  // ============================================================
+  // VOZ Y PAUSAS
+  // ============================================================
+  function loadVoices(){
+    return new Promise(resolve => {
+      const choose = () => {
+        const voices = speechSynthesis.getVoices();
+        if(!voices.length) return false;
+
+        const spanish = voices.filter(v => /^es([-_]|$)/i.test(v.lang));
+        const maleHints = [
+          "pablo","diego","jorge","carlos","miguel","antonio","enrique",
+          "raul","álvaro","alvaro","juan","andrés","andres","male","hombre"
+        ];
+
+        selectedVoice =
+          spanish.find(v => maleHints.some(h => v.name.toLowerCase().includes(h))) ||
+          spanish.find(v => /es-CO/i.test(v.lang)) ||
+          spanish.find(v => /es-ES/i.test(v.lang)) ||
+          spanish[0] ||
+          voices[0];
+
+        resolve(selectedVoice);
+        return true;
+      };
+
+      if(choose()) return;
+      speechSynthesis.onvoiceschanged = () => choose();
+      setTimeout(() => {
+        if(!selectedVoice){
+          selectedVoice = speechSynthesis.getVoices()[0] || null;
+          resolve(selectedVoice);
+        }
+      }, 1800);
+    });
+  }
+
+  function stopSpeech(){
+    speechSynthesis.cancel();
+    currentUtterance = null;
+  }
+
+  function speakClause(text){
+    return new Promise(resolve => {
+      checkCancelled();
+      const clean = String(text).trim();
+      if(!clean){
+        resolve();
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(clean);
+      currentUtterance = utterance;
+      if(selectedVoice) utterance.voice = selectedVoice;
+      utterance.lang = selectedVoice?.lang || "es-CO";
+      utterance.rate = 0.80;
+      utterance.pitch = 0.83;
+      utterance.volume = 1;
+
+      utterance.onend = () => {
+        if(currentUtterance === utterance) currentUtterance = null;
+        resolve();
+      };
+      utterance.onerror = () => {
+        if(currentUtterance === utterance) currentUtterance = null;
+        resolve();
+      };
+      speechSynthesis.speak(utterance);
+    });
+  }
+
+  /*
+   * Cada elemento puede incluir:
+   * {text:"...", pause:500, before:()=>{}, after:()=>{}}
+   * Las pausas se controlan explícitamente para que:
+   * coma = 0,5 s; punto/dos puntos = 1 s; punto y aparte = 1,5 s.
+   */
+  async function narrate(segments){
+    for(const seg of segments){
+      checkCancelled();
+      if(seg.before) await seg.before();
+      if(seg.text) await speakClause(seg.text);
+      if(seg.after) await seg.after();
+      if(seg.pause) await wait(seg.pause);
+    }
+  }
+
+  // ============================================================
+  // MÚSICA
+  // ============================================================
+  async function rampMusic(target, duration = 800){
+    const start = music.volume;
+    const t0 = performance.now();
+
+    return new Promise(resolve => {
+      const step = now => {
+        const p = Math.min(1,(now - t0) / duration);
+        music.volume = start + (target - start) * p;
+        if(p < 1) requestAnimationFrame(step);
+        else resolve();
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  // ============================================================
+  // DIBUJO DEL PÉNDULO
+  // ============================================================
+  function pendulumGeometry(theta){
+    const w = leftPanel.clientWidth;
+    const h = leftPanel.clientHeight;
+
+    // Escala física aproximada: 1 m ocupa cerca del 58% de la altura útil.
+    const pxPerMeter = Math.min(h * 0.58, w * 0.62);
+    const pivotBaseY = Math.max(56,h*0.12);
+    const pivot = {x:w*0.5, y:Math.max(18,pivotBaseY-72)};
+    const lengthPx = pxPerMeter * PHYS.L;
+
+    // La esfera de 0,5 cm sería muy pequeña en pantalla; se conserva el valor
+    // en la ficha de escala y se impone un mínimo visual para que sea perceptible.
+    const physicalRadiusPx = pxPerMeter * 0.005 / 2;
+    const bobRadius = Math.max(4, physicalRadiusPx);
+
+    const bob = {
+      x:pivot.x + lengthPx*Math.sin(theta),
+      y:pivot.y + lengthPx*Math.cos(theta)
+    };
+
+    return {w,h,pivot,lengthPx,bob,bobRadius};
+  }
+
+  function dampedDisplacementCm(t){
+    return PHYS.A0cm * Math.exp(-PHYS.gamma*t) * Math.cos(PHYS.omega*t);
+  }
+
+  function currentTheta(now){
+    if(state.mode === "equilibrium") return 0;
+    if(state.mode === "forces") return state.frozenTheta;
+    if(state.mode === "frozen") return state.frozenTheta;
+    if(state.mode === "handing") return state.handTheta;
+
+    const t = Math.max(0,simulationTime(now));
+    // La amplitud física sigue siendo A0=4 cm. Solo se amplifica la
+    // separación angular dibujada para que las fuerzas sean legibles.
+    const xMetersVisual = PHYS.visualAmplitude * dampedDisplacementCm(t) / 100;
+    return Math.asin(Math.max(-.999,Math.min(.999,xMetersVisual/PHYS.L)));
+  }
+
+  function drawBackground(g){
+    const {w,h,pivot,lengthPx} = g;
+
+    ctx.save();
+
+    // Línea vertical de equilibrio
+    ctx.setLineDash([6,7]);
+    ctx.strokeStyle = "rgba(255,255,255,.28)";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(pivot.x,pivot.y);
+    ctx.lineTo(pivot.x,pivot.y+lengthPx+25);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Soporte
+    ctx.strokeStyle = "#c7d2df";
+    ctx.lineWidth = 5;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(pivot.x-52,pivot.y-8);
+    ctx.lineTo(pivot.x+52,pivot.y-8);
+    ctx.stroke();
+
+    // Suelo sutil
+    const floorY = Math.min(h-50,pivot.y+lengthPx+35);
+    const grad = ctx.createLinearGradient(0,floorY-10,0,floorY+30);
+    grad.addColorStop(0,"rgba(170,190,210,.16)");
+    grad.addColorStop(1,"rgba(170,190,210,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,floorY-10,w,40);
+
+    ctx.restore();
+  }
+
+  function drawPendulum(theta){
+    const g = pendulumGeometry(theta);
+    drawBackground(g);
+
+    const {pivot,bob,bobRadius} = g;
+
+    // Hilo
+    ctx.save();
+    ctx.strokeStyle = "#edf2f6";
+    ctx.lineWidth = 1.25;
+    ctx.beginPath();
+    ctx.moveTo(pivot.x,pivot.y);
+    ctx.lineTo(bob.x,bob.y);
+    ctx.stroke();
+
+    // Sombra y esfera
+    ctx.shadowColor = "rgba(255,215,105,.65)";
+    ctx.shadowBlur = 13;
+    const radial = ctx.createRadialGradient(
+      bob.x-bobRadius*.35,bob.y-bobRadius*.35,1,
+      bob.x,bob.y,bobRadius*1.3
+    );
+    radial.addColorStop(0,"#fff2b0");
+    radial.addColorStop(.45,"#f0bd4f");
+    radial.addColorStop(1,"#9f6518");
+    ctx.fillStyle = radial;
+    ctx.beginPath();
+    ctx.arc(bob.x,bob.y,bobRadius,0,Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    if(state.handVisible || state.mode === "handing") drawHand(g,theta);
+
+    if(state.mode === "forces"){
+      drawForceDiagram(g,theta);
+    }else{
+      hideForceLabelPositionsOnly();
+    }
+
+    return g;
+  }
+
+  function arrow(from,to,color,width=3){
+    const head = 11;
+    const dx = to.x-from.x;
+    const dy = to.y-from.y;
+    const ang = Math.atan2(dy,dx);
+
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(from.x,from.y);
+    ctx.lineTo(to.x,to.y);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(to.x,to.y);
+    ctx.lineTo(to.x-head*Math.cos(ang-Math.PI/6),to.y-head*Math.sin(ang-Math.PI/6));
+    ctx.lineTo(to.x-head*Math.cos(ang+Math.PI/6),to.y-head*Math.sin(ang+Math.PI/6));
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function setLabelPosition(el,x,y,show){
+    el.style.left = x+"px";
+    el.style.top = y+"px";
+    el.classList.toggle("show",Boolean(show));
+  }
+
+  function hideForceLabelPositionsOnly(){
+    Object.values(labels).forEach(el => el.classList.remove("show"));
+  }
+
+  function drawForceDiagram(g,theta){
+    const {pivot,bob} = g;
+
+    // Vectores unitarios locales.
+    const uRadialOut = {x:Math.sin(theta),y:Math.cos(theta)};
+    const uTowardPivot = {x:-uRadialOut.x,y:-uRadialOut.y};
+    const uTangentialPositive = {x:Math.cos(theta),y:-Math.sin(theta)};
+    const uTangentialRestoring = {x:-uTangentialPositive.x,y:-uTangentialPositive.y};
+
+    // mg se descompone exactamente en:
+    // mg cos(theta), radial hacia afuera, y mg sin(theta), tangencial restauradora.
+    // La suma vectorial de ambas componentes termina exactamente en la punta de mg.
+    const mgLen = 185;
+    const radialLen = mgLen*Math.cos(theta);
+    const tangentialLen = mgLen*Math.sin(theta);
+    const frictionLen = Math.max(18, Math.min(26, tangentialLen*0.62));
+    const tensionLen = radialLen;
+
+    const cosVector = {
+      x:uRadialOut.x*radialLen,
+      y:uRadialOut.y*radialLen
+    };
+    const sinVector = {
+      x:uTangentialRestoring.x*tangentialLen,
+      y:uTangentialRestoring.y*tangentialLen
+    };
+
+    const cosEnd = {
+      x:bob.x+cosVector.x,
+      y:bob.y+cosVector.y
+    };
+    const sinEnd = {
+      x:bob.x+sinVector.x,
+      y:bob.y+sinVector.y
+    };
+    const mgEnd = {
+      x:bob.x+cosVector.x+sinVector.x,
+      y:bob.y+cosVector.y+sinVector.y
+    };
+
+    const frEnd = {
+      x:bob.x+uTangentialPositive.x*frictionLen,
+      y:bob.y+uTangentialPositive.y*frictionLen
+    };
+    const tEnd = {
+      x:bob.x+uTowardPivot.x*tensionLen,
+      y:bob.y+uTowardPivot.y*tensionLen
+    };
+
+    // Lados trasladados del paralelogramo. Se muestran cuando están visibles
+    // las dos componentes, para evidenciar que su diagonal es precisamente mg.
+    if(state.forceVisibility.mgCos && state.forceVisibility.mgSin){
+      ctx.save();
+      ctx.setLineDash([7,6]);
+      ctx.strokeStyle = "rgba(255,255,255,.55)";
+      ctx.lineWidth = 1.6;
+
+      ctx.beginPath();
+      ctx.moveTo(cosEnd.x,cosEnd.y);
+      ctx.lineTo(mgEnd.x,mgEnd.y);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(sinEnd.x,sinEnd.y);
+      ctx.lineTo(mgEnd.x,mgEnd.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if(state.forceVisibility.mg){
+      arrow(bob,mgEnd,"#f4f4f4",3);
+      setLabelPosition(labels.mg,mgEnd.x+28,mgEnd.y+18,true);
+    }else labels.mg.classList.remove("show");
+
+    if(state.forceVisibility.mgCos){
+      arrow(bob,cosEnd,"#cfcfcf",3);
+      setLabelPosition(
+        labels.mgCos,
+        cosEnd.x+34*Math.cos(theta),
+        cosEnd.y-18,
+        true
+      );
+    }else labels.mgCos.classList.remove("show");
+
+    if(state.forceVisibility.mgSin){
+      arrow(bob,sinEnd,"#f05a5a",4);
+      setLabelPosition(
+        labels.mgSin,
+        sinEnd.x-48,
+        sinEnd.y-16,
+        true
+      );
+    }else labels.mgSin.classList.remove("show");
+
+    if(state.forceVisibility.friction){
+      arrow(bob,frEnd,"#69b8ff",4);
+      setLabelPosition(labels.friction,frEnd.x+58,frEnd.y-10,true);
+    }else labels.friction.classList.remove("show");
+
+    if(state.forceVisibility.tension){
+      arrow(bob,tEnd,"#67d391",4);
+      setLabelPosition(labels.tension,tEnd.x-22,tEnd.y-24,true);
+    }else labels.tension.classList.remove("show");
+
+    // Arco del ángulo.
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,.62)";
+    ctx.lineWidth = 1.5;
+    const r = 48;
+    ctx.beginPath();
+    ctx.arc(pivot.x,pivot.y,r,Math.PI/2-theta,Math.PI/2,false);
+    ctx.stroke();
+    ctx.fillStyle = "#fff";
+    ctx.font = "italic 16px Segoe UI";
+    ctx.fillText("θ",pivot.x+15,pivot.y+45);
+    ctx.restore();
+  }
+
+  function drawHand(g,theta){
+    const {bob,bobRadius} = g;
+    const handX = bob.x + bobRadius + 8;
+    const handY = bob.y + 14;
+
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,.28)";
+    ctx.shadowBlur = 6;
+    ctx.font = "42px 'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText("👉", handX, handY);
+    ctx.restore();
+  }
+
+  function startHandPullAnimation(duration = 1800){
+    state.handVisible = true;
+    state.mode = "handing";
+    state.handTheta = 0;
+
+    const t0 = performance.now();
+    state.handPromise = new Promise(resolve => {
+      const step = now => {
+        const p = Math.min(1,(now - t0)/duration);
+        const eased = 1 - Math.pow(1-p, 3);
+        state.handTheta = state.frozenTheta * eased;
+        if(p < 1) requestAnimationFrame(step);
+        else {
+          state.handTheta = state.frozenTheta;
+          resolve();
+        }
+      };
+      requestAnimationFrame(step);
+    });
+
+    return state.handPromise;
+  }
+
+  function animationLoop(now){
+    const theta = currentTheta(now);
+    ctx.clearRect(0,0,leftPanel.clientWidth,leftPanel.clientHeight);
+    drawPendulum(theta);
+
+    if(state.mode === "oscillating" || state.mode === "persistent"){
+      const t = Math.max(0,simulationTime(now));
+      const amplitude = PHYS.A0cm*Math.exp(-PHYS.gamma*t);
+      ampValue.textContent = formatComma(amplitude,2)+" cm";
+    }
+
+    if(state.graphAnimating){
+      state.graphProgress = Math.min(1,state.graphProgress + 0.0027);
+      drawGraph(state.graphProgress);
+      if(state.graphProgress >= 1) state.graphAnimating = false;
+    }
+
+    state.animationId = requestAnimationFrame(animationLoop);
+  }
+
+  // ============================================================
+  // GRÁFICA
+  // ============================================================
+  function showGraphBoard(){
+    boardContent.style.display = "none";
+    graphCanvas.style.display = "block";
+    graphInfo.style.display = "block";
+    graphInfo.innerHTML = String.raw`
+      <div class="graphEq">\(x(t)=4e^{-0{,}20t}\cos(3{,}12t)\ \mathrm{cm}\)</div>
+      <div class="graphParams">\(A=4\,\mathrm{cm},\ \gamma=0{,}20\,\mathrm{s}^{-1},\ \omega=3{,}12\,\mathrm{rad/s}\)</div>
+    `;
+    typeset(graphInfo);
+    resizeGraph();
+  }
+
+  function drawGraph(progress = 1){
+    if(graphCanvas.style.display === "none") return;
+
+    const w = graphCanvas.clientWidth;
+    const h = graphCanvas.clientHeight;
+    if(w < 10 || h < 10) return;
+
+    graphCtx.clearRect(0,0,w,h);
+
+    const margin = {l:58,r:24,t:30,b:48};
+    const plotW = w-margin.l-margin.r;
+    const plotH = h-margin.t-margin.b;
+    const tMax = 16;
+    const yMax = 4.5;
+
+    const X = t => margin.l + (t/tMax)*plotW;
+    const Y = y => margin.t + ((yMax-y)/(2*yMax))*plotH;
+
+    // Fondo
+    graphCtx.fillStyle = "rgba(255,255,255,.025)";
+    graphCtx.fillRect(margin.l,margin.t,plotW,plotH);
+
+    // Rejilla
+    graphCtx.save();
+    graphCtx.strokeStyle = "rgba(255,255,255,.13)";
+    graphCtx.lineWidth = 1;
+    graphCtx.font = "12px Segoe UI";
+    graphCtx.fillStyle = "rgba(255,255,255,.78)";
+
+    for(let t=0;t<=tMax;t+=2){
+      graphCtx.beginPath();
+      graphCtx.moveTo(X(t),margin.t);
+      graphCtx.lineTo(X(t),margin.t+plotH);
+      graphCtx.stroke();
+      graphCtx.fillText(String(t),X(t)-4,margin.t+plotH+20);
+    }
+
+    for(let y=-4;y<=4;y+=2){
+      graphCtx.beginPath();
+      graphCtx.moveTo(margin.l,Y(y));
+      graphCtx.lineTo(margin.l+plotW,Y(y));
+      graphCtx.stroke();
+      graphCtx.fillText(String(y).replace(".",","),margin.l-29,Y(y)+4);
+    }
+    graphCtx.restore();
+
+    // Ejes
+    graphCtx.save();
+    graphCtx.strokeStyle = "rgba(255,255,255,.88)";
+    graphCtx.lineWidth = 1.6;
+    graphCtx.beginPath();
+    graphCtx.moveTo(margin.l,Y(0));
+    graphCtx.lineTo(margin.l+plotW,Y(0));
+    graphCtx.moveTo(margin.l,margin.t);
+    graphCtx.lineTo(margin.l,margin.t+plotH);
+    graphCtx.stroke();
+    graphCtx.fillStyle = "#fff";
+    graphCtx.font = "italic 15px Segoe UI";
+    graphCtx.fillText("t (s)",margin.l+plotW-20,margin.t+plotH+40);
+    graphCtx.fillText("x(t) (cm)",8,margin.t+4);
+    graphCtx.restore();
+
+    const endT = tMax*Math.max(0,Math.min(1,progress));
+
+    // Envolventes
+    graphCtx.save();
+    graphCtx.setLineDash([7,6]);
+    graphCtx.strokeStyle = "rgba(245,196,81,.85)";
+    graphCtx.lineWidth = 2;
+
+    for(const sign of [1,-1]){
+      graphCtx.beginPath();
+      for(let i=0;i<=700;i++){
+        const t = endT*i/700;
+        const y = sign*PHYS.A0cm*Math.exp(-PHYS.gamma*t);
+        const px = X(t), py=Y(y);
+        if(i===0) graphCtx.moveTo(px,py); else graphCtx.lineTo(px,py);
+      }
+      graphCtx.stroke();
+    }
+    graphCtx.restore();
+
+    // Curva amortiguada
+    graphCtx.save();
+    graphCtx.strokeStyle = "#8fd8ff";
+    graphCtx.lineWidth = 3;
+    graphCtx.beginPath();
+    for(let i=0;i<=1300;i++){
+      const t=endT*i/1300;
+      const y=dampedDisplacementCm(t);
+      const px=X(t),py=Y(y);
+      if(i===0) graphCtx.moveTo(px,py); else graphCtx.lineTo(px,py);
+    }
+    graphCtx.stroke();
+    graphCtx.restore();
+
+    // Título y ecuación simple de referencia
+    graphCtx.fillStyle = "#fff";
+    graphCtx.font = "600 17px Segoe UI";
+    graphCtx.fillText("Diagrama x(t) vs. t",margin.l,19);
+  }
+
+  async function animateGraph(duration = 7500){
+    state.graphProgress = 0;
+    state.graphAnimating = false;
+
+    const t0 = performance.now();
+    return new Promise(resolve => {
+      const step = now => {
+        const p = Math.min(1,(now-t0)/duration);
+        state.graphProgress = p;
+        drawGraph(p);
+        if(p<1) requestAnimationFrame(step);
+        else resolve();
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  // ============================================================
+  // DIAGRAMA DE FUERZAS
+  // ============================================================
+  function setForce(name,visible=true){
+    state.forceVisibility[name] = visible;
+  }
+
+  function clearForces(){
+    Object.keys(state.forceVisibility).forEach(k => state.forceVisibility[k]=false);
+    Object.values(labels).forEach(el => el.classList.remove("show"));
+  }
+
+  // ============================================================
+  // SECUENCIA DIDÁCTICA
+  // ============================================================
+  async function runSequence(){
+    state.cancelled = false;
+    state.running = true;
+    controls.classList.remove("show");
+    endOverlay.classList.remove("show");
+    clearTimeout(state.finalTimer);
+    stopSpeech();
+    clearForces();
+    state.handVisible = false;
+    state.handTheta = 0;
+    state.handPromise = null;
+    ampBox.classList.remove("show");
+    await clearBoard();
+
+    state.mode = "equilibrium";
+    resetSimulation(0,1);
+    music.currentTime = 0;
+    music.loop = true;
+    music.volume = 1;
+
+    setStatus("Música inicial");
+    try{
+      await music.play();
+    }catch(err){
+      console.warn("No se pudo reproducir onda.mp3:", err);
+      setStatus("No se pudo reproducir onda.mp3; la secuencia continúa sin música");
+    }
+    await wait(3000);
+    checkCancelled();
+
+    await rampMusic(0.10,1000);
+    await wait(150);
+
+    // ------------------------------------------------------------
+    // LOCUCIÓN 1
+    // ------------------------------------------------------------
+    setStatus("Locución: presentación del movimiento");
+    await narrate([
+      {
+        text:"Observamos un péndulo simple de un metro de longitud bajo la acción del campo gravitatorio de la Tierra donde su aceleración es nueve punto ocho metros por segundo en cada segundo",
+        pause:1000
+      },
+      {
+        text:"Si lo separamos de su posición de equilibrio de manera que el ángulo que se forme sea menor de cinco grados",
+        before:async()=>{
+          startHandPullAnimation(1800);
+        },
+        after:async()=>{
+          if(state.handPromise) await state.handPromise;
+        },
+        pause:300
+      },
+      {
+        text:"comenzará a oscilar",
+        before:async()=>{
+          state.handVisible = false;
+          state.mode="oscillating";
+          resetSimulation(0,1);
+          ampBox.classList.add("show");
+        },
+        pause:500
+      },
+      {
+        text:"pero observamos que su amplitud",
+        pause:500
+      },
+      {
+        text:"que inicialmente fue de cuatro centímetros",
+        pause:500
+      },
+      {
+        text:"va disminuyendo",
+        pause:1000
+      }
+    ]);
+
+    // Demostración de 6 s sin reiniciar la oscilación, para evitar saltos.
+    setStatus("Demostración de la disminución de amplitud");
+    state.mode="oscillating";
+    ampBox.classList.add("show");
+    await rampMusic(1,650);
+    const elapsed0 = simulationTime();
+    if(elapsed0 < 6) await wait((6 - elapsed0) * 1000);
+
+    const amp6 = PHYS.A0cm*Math.exp(-PHYS.gamma*6);
+    ampValue.textContent = formatComma(amp6,2)+" cm";
+    await rampMusic(0.10,700);
+    await wait(1000);
+
+    // ------------------------------------------------------------
+    // LOCUCIÓN 2: FUERZAS
+    // ------------------------------------------------------------
+    setStatus("Locución: diagrama de cuerpo libre");
+    state.mode="forces";
+    clearForces();
+    ampBox.classList.remove("show");
+
+    await narrate([
+      {
+        text:"Si se hace un análisis físico de las fuerzas que actúan en cada instante de tiempo sobre la masa",
+        pause:500
+      },
+      {
+        text:"se observa que la fuerza del campo gravitatorio, eme ge",
+        before:async()=>setForce("mg",true),
+        pause:500
+      },
+      {
+        text:"se puede descomponer en, eme ge coseno de cita, colineal con la dirección del hilo",
+        before:async()=>setForce("mgCos",true),
+        pause:500
+      },
+      {
+        text:"y eme ge seno de cita, perpendicular a la dirección del hilo",
+        before:async()=>setForce("mgSin",true),
+        pause:500
+      },
+      {
+        text:"y que contraria al movimiento aparece la FUERZA DE fricción con el aire, menos, be por la velocidad",
+        before:async()=>setForce("friction",true),
+        pause:500
+      },
+      {
+        text:"y que también aparecerá la fuerza de tensión, señalada con la etiqueta, te, en el diagrama de cuerpo libre",
+        before:async()=>setForce("tension",true),
+        pause:1000
+      }
+    ]);
+
+    await wait(2000);
+
+    // ------------------------------------------------------------
+    // LOCUCIÓN 3: SEGUNDA LEY
+    // ------------------------------------------------------------
+    setStatus("Locución: segunda ley de Newton");
+    await clearBoard();
+    await addBoardHeading("Segunda ley de Newton");
+
+    await narrate([
+      {
+        text:"Si se utiliza la segunda ley de Newton",
+        pause:500
+      },
+      {
+        text:"se puede escribir que la sumatoria de fuerzas sobre la masa es igual a la masa por la segunda derivada de la posición",
+        before:async()=>{
+          await addBoardEquation(
+            String.raw`\sum \vec{F}=m\frac{d^2x}{dt^2}`
+          );
+        },
+        pause:500
+      },
+      {
+        text:"igual a, menos be, por la velocidad, menos eme ge seno de cita",
+        before:async()=>{
+          await addBoardEquation(
+            String.raw`m\frac{d^2x}{dt^2}=-b\frac{dx}{dt}-mg\sin\theta`
+          );
+        },
+        pause:500
+      },
+      {
+        text:"como se observa en la pizarra",
+        pause:500
+      },
+      {
+        text:"y por lo tanto",
+        pause:500
+      },
+      {
+        text:"sobre la masa solamente quedan actuando dos fuerzas",
+        before:async()=>{
+          setForce("tension",false);
+          setForce("mgCos",false);
+          setForce("mg",false);
+        },
+        pause:500
+      },
+      {
+        text:"eme ge seno de cita, y, menos be por Uve",
+        pause:500
+      },
+      {
+        text:"lo que indica",
+        pause:500
+      },
+      {
+        text:"que la masa oscilará solamente, cuando la tendencia a detener el movimiento",
+        pause:500
+      },
+      {
+        text:"CONCENTRADA EN LA FUERZAQ DE FRICCIÓN",
+        pause:500
+      },
+      {
+        text:"sea menor, que la tendencia a mantener el movimiento",
+        pause:500
+      },
+      {
+        text:"DADA POR la fuerza de restitución, eme, ge, seno de cita",
+        before:async()=>{
+          await addBoardText(
+            '<span class="damping">Fricción:</span> \\(\\vec F_r=-b\\vec v\\)'
+          );
+          await addBoardText(
+            '<span class="restoring">Fuerza de restitución:</span> \\(\\vec F_{\\!R}=-mg\\sin\\theta\\,\\hat t\\)'
+          );
+        },
+        pause:1000
+      }
+    ]);
+
+    // ------------------------------------------------------------
+    // LOCUCIÓN 4: FRECUENCIA Y CONDICIÓN DE SUBAMORTIGUAMIENTO
+    // ------------------------------------------------------------
+    state.mode="persistent";
+    resetSimulation(0,0.42);
+    clearForces();
+    ampBox.classList.add("show");
+    await clearBoard();
+    await addBoardHeading("Raíces y condición del movimiento subamortiguado");
+
+    setStatus("Locución: frecuencia y condición de oscilación");
+    await narrate([
+      {
+        text:"La frecuencia con que oscila este péndulo",
+        pause:500
+      },
+      {
+        text:"necesariamente tiene que depender de los elementos que tienden a detenerlo",
+        pause:500
+      },
+      {
+        text:"la fricción",
+        before:async()=>{
+          await addBoardText(
+            '<span class="damping">Amortiguamiento:</span> depende de \\(b\\).'
+          );
+          await addBoardEquation(String.raw`\gamma=\frac{b}{2m}`);
+        },
+        pause:500
+      },
+      {
+        text:"",
+        pause:500
+      },
+      {
+        text:"y de los elementos que tienden a que se mantenga oscilando",
+        pause:500
+      },
+      {
+        text:"LA ACELERACIÓN QUE LE IMPRIME A LA MASA, FUERZA DEL CAMPO GRAVITATORIA",
+        before:async()=>{
+          await addBoardText(
+            '<span class="restoring">Restitución:</span> depende de \\(L\\) y \\(g\\).'
+          );
+          await addBoardEquation(String.raw`\omega_0=\sqrt{\frac{g}{L}}`);
+        },
+        pause:1000
+      },
+      {
+        text:"Sin entrar en detalles matemáticos, que pueden encontrarse en el texto de oscilaciones y ondas, la frecuencia con que oscila este péndulo es igual a la raíz de gamma al cuadrado menos omega sub cero al cuadrado",
+        before:async()=>{
+          await addBoardEquation(
+            String.raw`\omega=\sqrt{\gamma^2-\omega_0^2}`,
+            "highlight"
+          );
+        },
+        pause:500
+      },
+      {
+        text:"Y la oscilación solamente será posible cuando omega sub cero sea mayor que gamma",
+        before:async()=>{
+          await addBoardEquation(
+            String.raw`\omega_0>\gamma`,
+            "condition"
+          );
+        },
+        pause:500
+      },
+      {
+        text:"Y en definitiva la ecuación del movimiento para un péndulo sobre el que actúa una fuerza de fricción viscosa pequeña se expresa como una función seno o coseno modulada por una exponencial",
+        before:async()=>{
+          await addBoardEquation(
+            String.raw`x(t)=4e^{-0{,}20t}\cos(3{,}12t)\ \mathrm{cm}`
+          );
+        },
+        pause:1000
+      }
+    ]);
+
+    await wait(2000);
+
+    // ------------------------------------------------------------
+    // LOCUCIÓN 5: GRÁFICA POSICIÓN-TIEMPO
+    // ------------------------------------------------------------
+    setStatus("Locución: gráfica posición contra tiempo");
+    state.mode="frozen";
+    showGraphBoard();
+    state.graphProgress=0;
+    drawGraph(0);
+
+    await narrate([
+      {
+        text:"Si se observa el movimiento del péndulo a partir del instante de tiempo en que estaba en su posición de máxima elongación positiva",
+        pause:500
+      },
+      {
+        text:"y se traza el diagrama posición contra tiempo de la ecuación que se muestra debajo del gráfico, con los valores particulares de este ejemplo",
+        pause:1000
+      }
+    ]);
+
+    state.mode="persistent";
+    resetSimulation(0,1);
+    const graphPromise = animateGraph(10000);
+
+    await narrate([
+      {
+        text:"Se puede observar la disminución de la amplitud del movimiento con respecto al tiempo.",
+        pause:500
+      },
+      {
+        text:"Este movimiento oscilatorio donde la amplitud va disminuyendo periódicamente recibe el nombre de movimiento periódico amortiguado",
+        pause:500
+      },
+      {
+        text:"O más preciso: movimiento armónico sub amortiguado",
+        pause:500
+      },
+      {
+        text:"",
+        pause:500
+      },
+      {
+        text:"El diagrama permite visualizar la disminución de la amplitud que va experimentando la oscilación del péndulo",
+        pause:500
+      },
+      {
+        text:"Esta disminución de la amplitud, indica que el péndulo le va entregando en cada oscilación una parte de la energía que recibió del agente externo para comenzar a oscilar,",
+        pause:500
+      },
+      {
+        text:"",
+        pause:1000
+      }
+    ]);
+
+    await graphPromise;
+    await finishSequence();
+  }
+
+  // ============================================================
+  // FINAL, REPETIR Y SALIR
+  // ============================================================
+  async function finishSequence(){
+    setStatus("Secuencia terminada");
+    controls.classList.add("show");
+    startInactivityTimer();
+  }
+
+  function startInactivityTimer(){
+    clearTimeout(state.finalTimer);
+    state.finalTimer = setTimeout(exitProgram,5000);
+  }
+
+  function noteActivity(){
+    if(controls.classList.contains("show")) startInactivityTimer();
+  }
+
+  ["pointermove","pointerdown","keydown","touchstart"].forEach(evt=>{
+    window.addEventListener(evt,noteActivity,{passive:true});
+  });
+
+  async function restartProgram(){
+    state.cancelled = true;
+    stopSpeech();
+    clearTimeout(state.finalTimer);
+    controls.classList.remove("show");
+    await wait(80);
+    try{
+      await runSequence();
+    }catch(err){
+      if(err.message!=="SEQUENCE_CANCELLED") console.error(err);
+    }
+  }
+
+  function exitProgram(){
+    state.cancelled = true;
+    stopSpeech();
+    clearTimeout(state.finalTimer);
+    controls.classList.remove("show");
+    music.pause();
+    setStatus("Finalizado");
+
+    // Solo funciona si esta pestaña fue abierta mediante JavaScript.
+    window.close();
+
+    // Alternativa visual cuando el navegador bloquea window.close().
+    setTimeout(()=>{
+      endOverlay.classList.add("show");
+    },150);
+  }
+
+  repeatBtn.addEventListener("click",restartProgram);
+  exitBtn.addEventListener("click",exitProgram);
+
+  // ============================================================
+  // ARRANQUE
+  // ============================================================
+  async function startProgram(){
+    startOverlay.classList.remove("show");
+    await loadVoices();
+    await typeset(document.body);
+
+    try{
+      await runSequence();
+    }catch(err){
+      if(err.message!=="SEQUENCE_CANCELLED"){
+        console.error(err);
+        setStatus("Se produjo un error");
+      }
+    }
+  }
+
+  startBtn.addEventListener("click",async()=>{
+    // La interacción directa habilita el audio en navegadores que bloquean
+    // la reproducción automática.
+    try{
+      music.volume=1;
+      await music.play();
+      music.pause();
+      music.currentTime=0;
+    }catch(err){
+      console.warn("No se pudo habilitar el audio:",err);
+    }
+    await startProgram();
+  });
+
+  async function boot(){
+    resizeCanvas();
+    state.animationId=requestAnimationFrame(animationLoop);
+    await typeset(document.body);
+
+    // Intento de reproducción automática.
+    music.volume=1;
+    try{
+      await music.play();
+      music.pause();
+      music.currentTime=0;
+      await startProgram();
+    }catch{
+      startOverlay.classList.add("show");
+      setStatus("Pulse INICIAR");
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded",boot);
+})();
+</script>
+</body>
+</html>

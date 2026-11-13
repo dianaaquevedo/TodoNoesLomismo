@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Modelo péndulo simple</title>
+<style>
+:root{--ink:#e9f1f7;--muted:#9fb1bf;--gold:#f4c95d;--red:#ff6b6b;--cyan:#58d6e7;--board:#122e2b;--bg:#071018}
+*{box-sizing:border-box} html,body{width:100%;height:100%;overflow:hidden} body{margin:0;background:radial-gradient(circle at 30% 10%,#173040,var(--bg) 65%);color:var(--ink);font:16px/1.4 system-ui,Segoe UI,sans-serif;height:100vh}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;background:#071018dd;border-bottom:1px solid #ffffff1a;position:sticky;top:0;z-index:3}
+h1{font-size:clamp(18px,2vw,28px);margin:0}.controls{display:flex;gap:8px;flex-wrap:wrap;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(-5px);transition:opacity .6s ease,transform .6s ease,visibility .6s}.controls.visible{opacity:1;visibility:visible;pointer-events:auto;transform:none}button{background:#193746;color:white;border:1px solid #ffffff2b;border-radius:9px;padding:9px 13px;cursor:pointer}button:hover{background:#285064}.primary{background:#986f12}.primary:hover{background:#b88818}.controlHidden{display:none!important}
+main{display:grid;grid-template-columns:minmax(360px,.9fr) minmax(540px,1.35fr);gap:14px;padding:14px;max-width:1500px;margin:auto;height:calc(100vh - 66px);overflow:hidden}.card{background:#0b1821d9;border:1px solid #ffffff18;border-radius:15px;box-shadow:0 14px 35px #0008;overflow:hidden;height:100%}.stage{padding:8px;height:100%;display:grid;place-items:center}.stage canvas{max-height:100%;object-fit:contain}.board{background:linear-gradient(135deg,#173b36,#0d2523);padding:18px;min-height:0;overflow:hidden}.eq{font-family:Cambria,Georgia,serif;font-size:clamp(17px,1.7vw,24px);margin:8px 0;opacity:0;transform:translateY(6px);transition:opacity .45s ease,transform .45s ease}.eq.revealed{opacity:1;transform:none}.highlight{color:var(--gold)}.graphs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.graph{background:#08161c;border-radius:10px;border:1px solid #ffffff14;padding:5px}.graph div{text-align:center;font:14px Cambria,serif}.graph canvas{width:100%;height:155px}.note{font-size:13px;color:var(--muted)}
+
+#introOverlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:radial-gradient(circle at 50% 35%,#173746 0,#071018 66%);transition:opacity .8s ease,visibility .8s ease}
+#introOverlay.hidden{opacity:0;visibility:hidden;pointer-events:none}
+.introBox{text-align:center;padding:36px 28px;max-width:800px}
+.introTitle{font-size:clamp(38px,6vw,76px);line-height:1.05;margin:0 0 32px;color:var(--ink);text-shadow:0 8px 30px #000}
+#startBtn{font-size:17px;font-weight:750;padding:13px 26px;border-radius:999px;background:#986f12;border-color:#f4c95d66}
+#startBtn:hover{background:#b88818}
+#introHint{margin-top:14px;color:var(--muted);font-size:13px}
+
+@media(max-width:950px){html,body{overflow:auto}main{grid-template-columns:1fr;height:auto;min-height:calc(100vh - 66px)}.card{height:auto}.graphs{grid-template-columns:1fr}.graph canvas{height:120px}}
+</style>
+</head>
+<body>
+<audio id="introMusic" src="onda.mp3" preload="auto"></audio>
+<div id="introOverlay"><div class="introBox"><h1 class="introTitle">Modelo péndulo simple</h1><button id="startBtn">INICIAR</button></div></div>
+<header><h1>Modelo péndulo simple</h1><div class="controls" id="controls"><button id="backBtn">REGRESAR</button><button id="pauseBtn">PAUSAR</button><button id="repeatBtn" class="primary controlHidden">REPETIR</button><button id="exitBtn">SALIR</button></div></header>
+<main>
+  <section class="card"><div class="stage"><canvas id="pendulum" width="620" height="520" style="width:100%;height:auto"></canvas></div></section>
+  <section class="card board"><div id="boardText"></div><div class="graphs" id="graphs"><div class="graph"><div>x(t) = A cos(ωt)</div><canvas id="gx"></canvas></div><div class="graph"><div>v(t) = −Aω sen(ωt)</div><canvas id="gv"></canvas></div><div class="graph"><div>a(t) = −Aω² cos(ωt)</div><canvas id="ga"></canvas></div></div></section>
+</main>
+<script>
+const L=1,g=9.81,theta0=8*Math.PI/180,A=L*theta0,omega=Math.sqrt(g/L),T=2*Math.PI/omega;
+const scenes=[
+ {title:'1. Construcción del modelo',duration:24,text:'Aquí tenemos el péndulo simple en su modelo más sencillo: hilo inextensible, masa puntual y ángulo pequeño. En este caso, la longitud del hilo será de un metro. Consideraremos una masa puntual, cuyo tamaño se desprecia frente a la longitud del hilo. Ahora un agente externo saca al péndulo de su posición de equilibrio hasta un ángulo de ocho grados sexagesimales, por lo que estamos dentro de la aproximación de ángulo pequeño.',board:[
+   {html:'Hilo inextensible',at:3.2},
+   {html:'Masa puntual',at:5.3},
+   {html:'Ángulo pequeño',at:7.0},
+   {html:'L = 1,00 m',at:10.3},
+   {html:'d ≪ L',at:14.0},
+   {html:'θ₀ = 8° &lt; 10°',at:19.0,highlight:true}
+ ],mode:'still'},
+ {title:'2. Amplitud y energía',duration:20,text:'Cuando un agente externo saca el péndulo de su posición de equilibrio y lo mantiene en esta posición, la separación máxima respecto del equilibrio corresponde a la amplitud. Medida sobre el arco, es aproximadamente catorce centímetros. Al separarlo, el agente externo realiza trabajo sobre el sistema y aumenta su energía potencial gravitatoria.',board:[
+   {html:'A = Lθ₀',at:6.0},
+   {html:'A = 0,140 m ≈ 14 cm',at:10.0,highlight:true},
+   {html:'Eₚ = mgL(1 − cos θ₀)',at:16.0}
+ ],mode:'held'},
+ {title:'3. Fuerza restauradora',duration:24,text:'Cuando el agente externo libera al péndulo, comienza su movimiento oscilatorio porque desaparece la fuerza que lo mantenía apartado del equilibrio y queda una fuerza restauradora tangencial dirigida hacia la posición de equilibrio. Debido a ella, la rapidez va aumentando cuando el péndulo se acerca a la posición de equilibrio y va disminuyendo cuando se aleja de ella. Observa cómo el vector velocidad y el vector fuerza restauradora cambian continuamente durante el movimiento.',board:[
+   {html:'Fᵣ = −mg sen θ',at:5.2,highlight:true},
+   {html:'Fᵣ → hacia el equilibrio',at:8.7},
+   {html:'|v| aumenta al acercarse al equilibrio',at:13.0},
+   {html:'|v| disminuye al alejarse del equilibrio',at:17.2}
+ ],mode:'move'},
+ {title:'4. Periodo',duration:21,text:'Se puede asegurar que, para ángulos pequeños, el período con que oscila el péndulo es dos pi por la raíz cuadrada de L sobre g. Aunque esta expresión tiene una bonita historia, hoy puede obtenerse mediante el cálculo infinitesimal. Para un hilo de un metro, el período es aproximadamente dos segundos.',board:[
+   {html:'T ≈ 2π√(L/g)',at:6.0,highlight:true},
+   {html:'L = 1,00 m',at:13.0},
+   {html:'g = 9,81 m/s²',at:14.4},
+   {html:'T ≈ 2,006 s',at:17.1}
+ ],mode:'move'},
+ {title:'5. Ecuación del movimiento',duration:24,text:'Análogamente, la ecuación del movimiento del péndulo, en esta aproximación que se llama movimiento armónico simple, se describe con la ecuación general equis de te igual a A por el coseno de omega te más fi sub cero. En este caso particular, la amplitud es aproximadamente catorce centímetros, omega es aproximadamente pi radianes por segundo y fi sub cero es cero radianes. Por tanto, podemos escribir equis de te aproximadamente igual a catorce coseno de pi te, en centímetros.',board:[
+   {html:'x(t) = A cos(ωt + φ₀)',at:7.0,highlight:true},
+   {html:'A ≈ 14 cm',at:13.0},
+   {html:'ω ≈ π rad/s',at:15.6},
+   {html:'φ₀ = 0 rad',at:18.0},
+   {html:'x(t) ≈ 14 cos(πt) cm',at:21.0,highlight:true}
+ ],mode:'move'},
+ {title:'6. Tres diagramas',duration:23,text:'La masa recorre un arco de circunferencia. Para ángulos pequeños, su desplazamiento tangencial se representa mediante una coordenada prácticamente lineal. La posición es un coseno; la velocidad, un menos seno; y la aceleración, un menos coseno. El marcador indica el mismo instante en las tres gráficas.',board:[
+   {html:'x(t)=A cos(ωt)',at:9.0},
+   {html:'v(t)=−Aω sen(ωt)',at:12.0},
+   {html:'a(t)=−Aω² cos(ωt)',at:15.0},
+   {html:'a(t)=−ω²x(t)',at:18.0,highlight:true}
+ ],mode:'graphs'},
+ {title:'7. Alcance del modelo',duration:21,text:'Estas ecuaciones y diagramas describen aproximadamente cualquier sistema cuya fuerza restauradora sea proporcional y opuesta al desplazamiento, mientras el modelo lineal sea válido y los efectos disipativos puedan despreciarse. En el modelo ideal la amplitud permanece constante; en un péndulo real, solo es aproximadamente constante durante las primeras oscilaciones si el amortiguamiento es pequeño.',board:[
+   {html:'Condición fundamental',at:3.0},
+   {html:'a = −ω²x',at:8.0,highlight:true},
+   {html:'Modelo lineal',at:13.0},
+   {html:'Disipación despreciable',at:16.0}
+ ],mode:'graphs'},
+ {title:'8. Síntesis',duration:26,text:'En resumen, se ha mostrado el modelo del péndulo simple en su forma más sencilla. En la aproximación de oscilaciones pequeñas, este mismo esquema permite describir muchos sistemas oscilatorios cerca de una posición de equilibrio estable, siempre que su comportamiento pueda aproximarse mediante una fuerza restauradora proporcional y opuesta al desplazamiento. Por supuesto, la frecuencia angular no es la misma para todos los sistemas: su valor depende de las condiciones físicas propias del sistema que se describe.',board:[
+   {html:'Oscilaciones pequeñas',at:5.0},
+   {html:'Fᵣ ∝ −x',at:11.0,highlight:true},
+   {html:'Movimiento armónico simple',at:16.0},
+   {html:'ω depende de las condiciones físicas del sistema',at:21.0,highlight:true}
+ ],mode:'graphs'}
+];
+let scene=0,playing=false,sceneStart=performance.now(),motionT=0,last=performance.now();
+let presentationStarted=false, boardTimers=[], visualTimer=null, releaseTimer=null, topicPauseTimer=null;
+let motionStarted=false, isPaused=false, presentationElapsed=0;
+let sceneElapsedBase=0, sceneClockStartedAt=performance.now();
+let inTopicPause=false, topicPauseElapsed=0, speechGeneration=0, controlsTimer=null;
+const sceneStartGlobal=Array(scenes.length).fill(null);
+const narrationActualDuration=Array(scenes.length).fill(null);
+const NARRATION_RATE=.72;
+const NARRATION_TIMING_SCALE=1.28;
+const TOPIC_PAUSE_MS=1700;
+const HAND_APPEAR_AT=18.5, HAND_PULL_DURATION=3.8, RELEASE_FALLBACK_MS=1900;
+const pc=document.querySelector('#pendulum'),p=pc.getContext('2d'),board=document.querySelector('#boardText'),graphs=document.querySelector('#graphs');
+const introOverlay=document.querySelector('#introOverlay'),startBtn=document.querySelector('#startBtn'),introMusic=document.querySelector('#introMusic'),controls=document.querySelector('#controls');
+const backBtn=document.querySelector('#backBtn'),pauseBtn=document.querySelector('#pauseBtn'),repeatBtn=document.querySelector('#repeatBtn'),exitBtn=document.querySelector('#exitBtn');
+function getYoungMaleSpanishVoice(){
+  const voices=speechSynthesis.getVoices();
+  const spanish=voices.filter(v=>/^es([-_]|$)/i.test(v.lang));
+  const maleHints=['male','masculino','gonzalo','álvaro','alvaro','enrique','jorge','carlos','diego','pablo','andrés','andres','mateo','miguel','juan'];
+  return spanish.find(v=>maleHints.some(h=>v.name.toLowerCase().includes(h)))
+      || spanish.find(v=>/google español|microsoft.*spanish|español/i.test(v.name))
+      || spanish[0]
+      || null;
+}
+function clearBoardTimers(){
+  boardTimers.forEach(clearTimeout);
+  boardTimers=[];
+  if(visualTimer){clearTimeout(visualTimer);visualTimer=null}
+  if(releaseTimer){clearTimeout(releaseTimer);releaseTimer=null}
+  if(topicPauseTimer){clearTimeout(topicPauseTimer);topicPauseTimer=null}
+}
+function cancelNarration(){
+  speechGeneration++;
+  speechSynthesis.cancel();
+}
+function getSceneElapsed(){
+  if(!playing || isPaused)return sceneElapsedBase;
+  return sceneElapsedBase+(performance.now()-sceneClockStartedAt)/1000;
+}
+function setSceneClock(seconds=0){
+  sceneElapsedBase=Math.max(0,seconds);
+  sceneClockStartedAt=performance.now();
+  sceneStart=performance.now()-sceneElapsedBase*1000;
+}
+function prepareBoard(){
+  clearBoardTimers();
+  board.innerHTML=scenes[scene].board.map((item,j)=>`<div class="eq ${item.highlight?'highlight':''}" data-board-index="${j}">${item.html}</div>`).join('');
+}
+function updateBoardFromClock(){
+  const elapsed=getSceneElapsed();
+  scenes[scene].board.forEach((item,j)=>{
+    const el=board.querySelector(`[data-board-index="${j}"]`);
+    if(!el)return;
+    el.classList.toggle('revealed',elapsed>=item.at*NARRATION_TIMING_SCALE);
+  });
+}
+function showNarrationControls(){
+  controls.classList.add('visible');
+  backBtn.classList.remove('controlHidden');
+  pauseBtn.classList.remove('controlHidden');
+  repeatBtn.classList.add('controlHidden');
+  exitBtn.classList.remove('controlHidden');
+  pauseBtn.textContent=isPaused?'CONTINUAR':'PAUSAR';
+}
+function showFinalControls(){
+  if(controlsTimer){clearTimeout(controlsTimer);controlsTimer=null}
+  controls.classList.add('visible');
+  backBtn.classList.add('controlHidden');
+  pauseBtn.classList.add('controlHidden');
+  repeatBtn.classList.remove('controlHidden');
+  exitBtn.classList.remove('controlHidden');
+}
+function revealControlsAfterFirstSecond(){
+  if(controlsTimer)clearTimeout(controlsTimer);
+  controlsTimer=setTimeout(()=>{
+    controlsTimer=null;
+    if(playing)showNarrationControls();
+  },1000);
+}
+function releasePendulum(){
+  if(scene!==2 || motionStarted)return;
+  motionStarted=true;
+  motionT=0;
+}
+function stopBackgroundMusic(){
+  try{
+    introMusic.pause();
+    introMusic.currentTime=0;
+  }catch(e){}
+  if(fallbackAudio){
+    try{fallbackAudio.oscillators?.forEach(o=>o.stop())}catch(e){}
+    try{fallbackAudio.ac?.close()}catch(e){}
+    fallbackAudio=null;
+  }
+}
+function finishPresentation(){
+  playing=false;
+  isPaused=false;
+  inTopicPause=false;
+  clearBoardTimers();
+  cancelNarration();
+  stopBackgroundMusic();
+  showFinalControls();
+}
+function scheduleNextTopic(){
+  if(!playing)return;
+  if(scene>=scenes.length-1){
+    finishPresentation();
+    return;
+  }
+  inTopicPause=true;
+  topicPauseElapsed=0;
+}
+function textFromApproximateSecond(text,seconds,duration){
+  if(seconds<=0)return text;
+  const ratio=Math.max(0,Math.min(.96,seconds/Math.max(duration,.1)));
+  let index=Math.floor(text.length*ratio);
+  while(index<text.length && !/\s/.test(text[index]))index++;
+  while(index<text.length && /\s/.test(text[index]))index++;
+  return text.slice(index)||text.slice(-Math.min(80,text.length));
+}
+function speak(fromSeconds=0){
+  cancelNarration();
+  const token=++speechGeneration;
+  const estimatedDuration=narrationActualDuration[scene] || scenes[scene].duration*NARRATION_TIMING_SCALE;
+  const spokenText=textFromApproximateSecond(scenes[scene].text,fromSeconds,estimatedDuration);
+  const u=new SpeechSynthesisUtterance(spokenText);
+  u.lang='es-CO';
+  u.rate=NARRATION_RATE;
+  u.pitch=.95;
+  const v=getYoungMaleSpanishVoice();
+  if(v)u.voice=v;
+  u.onstart=()=>{
+    if(token!==speechGeneration)return;
+    setSceneClock(fromSeconds);
+    updateBoardFromClock();
+  };
+  u.onboundary=(e)=>{
+    if(token!==speechGeneration || scene!==2 || motionStarted || typeof e.charIndex!=='number')return;
+    const fragment=spokenText.slice(e.charIndex);
+    const match=fragment.match(/^([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)/);
+    if(match && match[1].toLocaleLowerCase('es')==='libera')releasePendulum();
+  };
+  u.onend=()=>{
+    if(token!==speechGeneration)return;
+    narrationActualDuration[scene]=Math.max(narrationActualDuration[scene]||0,getSceneElapsed());
+    if(scene===2 && !motionStarted)releasePendulum();
+    scheduleNextTopic();
+  };
+  u.onerror=()=>{
+    if(token!==speechGeneration)return;
+    if(scene===2 && !motionStarted)releasePendulum();
+    scheduleNextTopic();
+  };
+  speechSynthesis.speak(u);
+}
+function setScene(i,autoSpeak=true,offset=0,recordStart=true){
+  scene=Math.max(0,Math.min(scenes.length-1,i));
+  inTopicPause=false;
+  topicPauseElapsed=0;
+  setSceneClock(offset);
+  prepareBoard();
+  graphs.style.display=scenes[scene].mode==='graphs'?'grid':'none';
+  if(scene===0 || scene===1){
+    motionStarted=false;
+    motionT=0;
+  }else if(scene===2){
+    motionStarted=offset>=RELEASE_FALLBACK_MS/1000;
+    motionT=motionStarted?Math.max(0,offset-RELEASE_FALLBACK_MS/1000):0;
+  }else{
+    motionStarted=true;
+    motionT=Math.max(0,offset);
+  }
+  if(recordStart)sceneStartGlobal[scene]=Math.max(0,presentationElapsed-offset);
+  updateBoardFromClock();
+  if(autoSpeak)speak(offset);
+}
+function arrow(ctx,x1,y1,x2,y2,color,label){
+  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);
+  if(len<1.5)return;
+  const a=Math.atan2(dy,dx),h=10;
+  ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=4;
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-h*Math.cos(a-.45),y2-h*Math.sin(a-.45));
+  ctx.lineTo(x2-h*Math.cos(a+.45),y2-h*Math.sin(a+.45));
+  ctx.closePath();ctx.fill();
+  ctx.font='bold 17px system-ui';ctx.fillText(label,x2+8,y2-7);
+}
+function easeInOutCubic(x){
+  x=Math.max(0,Math.min(1,x));
+  return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+}
+function drawSmallHoldingHand(x,y,grip=1){
+  p.save();
+  p.translate(x+17,y+1);
+  p.scale(.68,.68);
+  p.lineJoin='round';
+  p.lineCap='round';
+
+  const skin='#d7a270';
+  const outline='#6e4630';
+
+  // Palma pequeña al costado de la masa.
+  p.fillStyle=skin;
+  p.strokeStyle=outline;
+  p.lineWidth=2.2;
+  p.beginPath();
+  p.ellipse(20,1,17,21,-.18,0,Math.PI*2);
+  p.fill();
+  p.stroke();
+
+  // Dedos que se cierran progresivamente alrededor de la masa.
+  const close=9*grip;
+  [-15,-4,8].forEach((yy,i)=>{
+    p.strokeStyle=skin;
+    p.lineWidth=7.2;
+    p.beginPath();
+    p.moveTo(14,yy);
+    p.quadraticCurveTo(3-close*.30,yy-2,-6-close*.52,yy+5+i);
+    p.stroke();
+
+    p.strokeStyle=outline;
+    p.lineWidth=1.25;
+    p.beginPath();
+    p.moveTo(14,yy-3.3);
+    p.quadraticCurveTo(3-close*.30,yy-5.2,-6-close*.52,yy+1.6+i);
+    p.stroke();
+  });
+
+  // Pulgar cerrándose por debajo.
+  p.strokeStyle=skin;
+  p.lineWidth=8.2;
+  p.beginPath();
+  p.moveTo(14,14);
+  p.quadraticCurveTo(2,20,-8-close*.40,10);
+  p.stroke();
+
+  p.strokeStyle=outline;
+  p.lineWidth=1.25;
+  p.beginPath();
+  p.moveTo(13,10);
+  p.quadraticCurveTo(2,16,-8-close*.40,6);
+  p.stroke();
+
+  p.restore();
+}
+function pendulumVisualState(){
+  const elapsed=getSceneElapsed();
+
+  // Empieza exactamente en equilibrio. La mano aparece cuando la locución
+  // introduce la acción del agente externo y lo desplaza suavemente.
+  if(scene===0){
+    if(elapsed<HAND_APPEAR_AT)return {th:0,thdot:0,hand:false,grip:0};
+    const q=easeInOutCubic((elapsed-HAND_APPEAR_AT)/HAND_PULL_DURATION);
+    return {th:theta0*q,thdot:0,hand:true,grip:.35+.65*q};
+  }
+
+  // El agente externo sigue sosteniéndolo: todavía NO oscila.
+  if(scene===1)return {th:theta0,thdot:0,hand:true,grip:1};
+
+  // La mano permanece hasta la palabra «libera».
+  if(scene===2 && !motionStarted)return {th:theta0,thdot:0,hand:true,grip:1};
+
+  // Después de liberarlo, parte desde el reposo en la elongación máxima.
+  const th=theta0*Math.cos(omega*motionT);
+  const thdot=-theta0*omega*Math.sin(omega*motionT);
+  return {th,thdot,hand:false,grip:0};
+}
+function drawPendulum(){
+  const state=pendulumVisualState(),th=state.th,thdot=state.thdot;
+  const moving=motionStarted && scene>=2;
+  const ox=310,oy=55,scale=370,x=ox+scale*Math.sin(th),y=oy+scale*Math.cos(th);
+
+  p.clearRect(0,0,pc.width,pc.height);
+
+  p.strokeStyle='#ffffff28';
+  p.setLineDash([6,8]);
+  p.beginPath();p.moveTo(ox,oy);p.lineTo(ox,oy+410);p.stroke();
+  p.setLineDash([]);
+
+  p.strokeStyle='#dbe8ef';p.lineWidth=3;
+  p.beginPath();p.moveTo(ox,oy);p.lineTo(x,y);p.stroke();
+
+  p.fillStyle='#f4c95d';
+  p.beginPath();p.arc(ox,oy,7,0,Math.PI*2);p.fill();
+
+  if(Math.abs(th)>.008){
+    p.strokeStyle='#f4c95d';p.lineWidth=2;
+    p.beginPath();p.arc(ox,oy,75,Math.PI/2-th,Math.PI/2,th<0);p.stroke();
+    p.fillStyle='#f4c95d';p.font='18px system-ui';p.fillText('θ',ox+16,oy+67);
+  }
+
+  p.fillStyle='#d8a84d';
+  p.beginPath();p.arc(x,y,24,0,Math.PI*2);p.fill();
+  p.strokeStyle='#f4c95d';p.lineWidth=2;p.stroke();
+
+  if(state.hand)drawSmallHoldingHand(x,y,state.grip??1);
+
+  if(moving){
+    const tx=Math.cos(th),ty=-Math.sin(th);
+    const vScale=150*thdot/(theta0*omega);
+    const fScale=-125*Math.sin(th)/Math.sin(theta0);
+    arrow(p,x,y,x+tx*vScale,y+ty*vScale,'#58d6e7','v⃗');
+    arrow(p,x,y,x+tx*fScale,y+ty*fScale,'#ff6b6b','F⃗ᵣ');
+  }
+}
+function drawGraph(canvas,fn,color,label,t){const dpr=devicePixelRatio||1,r=canvas.getBoundingClientRect();canvas.width=r.width*dpr;canvas.height=r.height*dpr;const c=canvas.getContext('2d');c.scale(dpr,dpr);const w=r.width,h=r.height,mid=h/2;c.strokeStyle='#ffffff27';c.lineWidth=1;c.beginPath();c.moveTo(25,mid);c.lineTo(w-5,mid);c.moveTo(25,8);c.lineTo(25,h-14);c.stroke();c.strokeStyle=color;c.lineWidth=2.3;c.beginPath();for(let i=0;i<w-35;i++){const tt=i/(w-35)*2*T,val=fn(tt),xx=25+i,yy=mid-val*(h*.38);i?c.lineTo(xx,yy):c.moveTo(xx,yy)}c.stroke();const phase=(t%(2*T))/(2*T),mx=25+phase*(w-35),my=mid-fn(t)*(h*.38);c.strokeStyle='#f4c95d99';c.beginPath();c.moveTo(mx,8);c.lineTo(mx,h-14);c.stroke();c.fillStyle='#f4c95d';c.beginPath();c.arc(mx,my,4,0,7);c.fill();c.fillStyle='#9fb1bf';c.font='11px system-ui';c.fillText(label,4,12);c.fillText('t',w-12,mid-5)}
+function frame(now){
+  const dt=Math.min((now-last)/1000,.05);
+  last=now;
+  if(playing && !isPaused){
+    presentationElapsed+=dt;
+    if(motionStarted)motionT+=dt;
+    if(scene===2 && !motionStarted && getSceneElapsed()>=RELEASE_FALLBACK_MS/1000)releasePendulum();
+    if(inTopicPause){
+      topicPauseElapsed+=dt;
+      if(topicPauseElapsed>=TOPIC_PAUSE_MS/1000){
+        inTopicPause=false;
+        setScene(scene+1,true,0,true);
+      }
+    }
+  }
+  updateBoardFromClock();
+  drawPendulum();
+  if(scenes[scene].mode==='graphs'){
+    drawGraph(document.querySelector('#gx'),t=>Math.cos(omega*t),'#58d6e7','x',motionT);
+    drawGraph(document.querySelector('#gv'),t=>-Math.sin(omega*t),'#f4c95d','v',motionT);
+    drawGraph(document.querySelector('#ga'),t=>-Math.cos(omega*t),'#ff6b6b','a',motionT);
+  }
+  requestAnimationFrame(frame)
+}
+function resetTimeline(){
+  presentationElapsed=0;
+  sceneStartGlobal.fill(null);
+  narrationActualDuration.fill(null);
+  inTopicPause=false;
+  topicPauseElapsed=0;
+}
+function repetirPresentacion(){
+  clearBoardTimers();
+  cancelNarration();
+  if(controlsTimer){clearTimeout(controlsTimer);controlsTimer=null}
+  controls.classList.remove('visible');
+  playing=true;
+  isPaused=false;
+  speechSynthesis.resume();
+  resetTimeline();
+  motionT=0;
+  motionStarted=false;
+  setScene(0,false,0,true);
+  if(introMusic.paused){
+    introMusic.volume=.10;
+    introMusic.play().catch(()=>{});
+  }else{
+    introMusic.volume=.10;
+  }
+  if(fallbackAudio?.ac?.state==='suspended')fallbackAudio.ac.resume().catch(()=>{});
+  revealControlsAfterFirstSecond();
+  speak(0);
+}
+function togglePausa(){
+  if(!playing)return;
+  if(!isPaused){
+    sceneElapsedBase=getSceneElapsed();
+    isPaused=true;
+    speechSynthesis.pause();
+    try{introMusic.pause()}catch(e){}
+    if(fallbackAudio?.ac?.state==='running')fallbackAudio.ac.suspend().catch(()=>{});
+    pauseBtn.textContent='CONTINUAR';
+  }else{
+    isPaused=false;
+    sceneClockStartedAt=performance.now();
+    speechSynthesis.resume();
+    if(introMusic.paused){introMusic.volume=.10;introMusic.play().catch(()=>{})}
+    if(fallbackAudio?.ac?.state==='suspended')fallbackAudio.ac.resume().catch(()=>{});
+    pauseBtn.textContent='PAUSAR';
+  }
+}
+function regresarUnMinuto(){
+  if(!presentationStarted || !playing)return;
+  const target=Math.max(0,presentationElapsed-60);
+  let targetScene=0;
+  for(let i=0;i<sceneStartGlobal.length;i++){
+    if(sceneStartGlobal[i]!==null && sceneStartGlobal[i]<=target)targetScene=i;
+  }
+  const start=sceneStartGlobal[targetScene]??0;
+  let offset=Math.max(0,target-start);
+  const knownDuration=narrationActualDuration[targetScene] || scenes[targetScene].duration*NARRATION_TIMING_SCALE;
+  offset=Math.min(offset,Math.max(0,knownDuration-.25));
+  cancelNarration();
+  speechSynthesis.resume();
+  isPaused=false;
+  pauseBtn.textContent='PAUSAR';
+  presentationElapsed=target;
+  for(let i=targetScene+1;i<sceneStartGlobal.length;i++)sceneStartGlobal[i]=null;
+  setScene(targetScene,false,offset,false);
+  sceneStartGlobal[targetScene]=Math.max(0,target-offset);
+  showNarrationControls();
+  if(introMusic.paused){introMusic.volume=.10;introMusic.play().catch(()=>{})}
+  speak(offset);
+}
+
+function salirPresentacion(){
+  playing=false;
+  clearBoardTimers();
+  cancelNarration();
+
+  stopBackgroundMusic();
+
+  window.close();
+
+  // Si el navegador impide cerrar una pestaña abierta manualmente,
+  // se muestra una pantalla final limpia.
+  setTimeout(()=>{
+    introOverlay.classList.remove('hidden');
+    introOverlay.innerHTML='<div class="introBox"><h1 class="introTitle">Presentación finalizada</h1></div>';
+    controls.classList.remove('visible');
+  },120);
+}
+
+repeatBtn.addEventListener('click',repetirPresentacion);
+backBtn.addEventListener('click',regresarUnMinuto);
+pauseBtn.addEventListener('click',togglePausa);
+exitBtn.addEventListener('click',salirPresentacion);
+
+let fallbackAudio=null;
+function musicaFallback(ms=3600){
+  return new Promise(resolve=>{
+    try{
+      const AC=window.AudioContext||window.webkitAudioContext;
+      if(!AC){setTimeout(resolve,ms);return}
+      const ac=new AC(),master=ac.createGain();
+      master.connect(ac.destination);
+      master.gain.setValueAtTime(0.0001,ac.currentTime);
+      master.gain.exponentialRampToValueAtTime(0.08,ac.currentTime+.25);
+
+      const oscillators=[220,277.18,329.63].map((f,i)=>{
+        const o=ac.createOscillator(),g=ac.createGain();
+        o.type='sine'; o.frequency.value=f; g.gain.value=.16/(i+1);
+        o.connect(g); g.connect(master); o.start();
+        return o;
+      });
+
+      // Tras la introducción, queda como fondo suave.
+      master.gain.setValueAtTime(0.08,ac.currentTime+ms/1000-.5);
+      master.gain.exponentialRampToValueAtTime(0.01,ac.currentTime+ms/1000);
+      fallbackAudio={ac,master,oscillators};
+      setTimeout(resolve,ms);
+    }catch(e){setTimeout(resolve,ms)}
+  })
+}
+
+async function tocarIntroduccion(){
+  const DURACION_ENTRADA=4000;
+  let reprodujo=false;
+  try{
+    introMusic.currentTime=0;
+    introMusic.loop=true;
+    introMusic.volume=.80;
+    await introMusic.play();
+    reprodujo=true;
+  }catch(e){}
+  if(reprodujo){
+    await new Promise(r=>setTimeout(r,DURACION_ENTRADA));
+    const inicio=introMusic.volume, destino=.10, pasos=18;
+    for(let i=1;i<=pasos;i++){
+      introMusic.volume=inicio+(destino-inicio)*(i/pasos);
+      await new Promise(r=>setTimeout(r,30));
+    }
+    introMusic.volume=.10;
+  }else{
+    await musicaFallback(DURACION_ENTRADA);
+  }
+}
+
+async function iniciarPresentacion(){
+  if(presentationStarted)return;
+  presentationStarted=true;
+  startBtn.disabled=true;
+  cancelNarration();
+
+  resetTimeline();
+  setScene(0,false,0,true);
+  motionT=0;
+  motionStarted=false;
+
+  // El clic en INICIAR es el único disparador de la música.
+  // La portada desaparece enseguida para mostrar el péndulo en equilibrio.
+  introOverlay.classList.add('hidden');
+
+  // Música de entrada; al terminar su introducción queda al 10 %.
+  await tocarIntroduccion();
+
+  playing=true;
+  isPaused=false;
+  setSceneClock(0);
+  controls.classList.remove('visible');
+  revealControlsAfterFirstSecond();
+  speak(0);
+}
+
+speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();
+startBtn.addEventListener('click',iniciarPresentacion);
+setScene(0,false,0,false);requestAnimationFrame(frame);
+</script>
+</body>
+</html>

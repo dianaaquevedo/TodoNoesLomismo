@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resonancia mecánica</title>
+
+<style>
+:root{
+  --fondo:#e8eff3;
+  --pizarra:#173e2c;
+  --marco:#765239;
+  --tiza:#f4f1df;
+  --amarillo:#ffe28a;
+  --vino:#8e2639;
+  --gris:#4f5b63;
+}
+*{box-sizing:border-box}
+
+html,body{
+  width:100%;
+  height:100%;
+  margin:0;
+  overflow:hidden;
+  font-family:"Segoe UI",Arial,sans-serif;
+  color:#17232b;
+  background:var(--fondo);
+}
+
+body{
+  display:flex;
+  flex-direction:column;
+}
+
+header{
+  height:72px;
+  min-height:72px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(#fff,#e8eef2);
+  border-bottom:2px solid #b8c3ca;
+  box-shadow:0 2px 8px rgba(0,0,0,.13);
+  z-index:5;
+}
+
+header h1{
+  margin:0;
+  font-size:clamp(28px,3vw,45px);
+  font-weight:780;
+  letter-spacing:.35px;
+}
+
+#main{
+  flex:1;
+  min-height:0;
+  display:grid;
+  grid-template-columns:minmax(0,3fr) minmax(300px,1fr);
+}
+
+#simulation{
+  position:relative;
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+  border-right:5px solid #684a35;
+  background:
+    radial-gradient(circle at 50% 24%,rgba(255,255,255,.98),rgba(220,232,238,.97) 72%),
+    linear-gradient(#eef5f8,#dce7ed);
+}
+
+#scene{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:block;
+}
+
+#status{
+  display:none !important;
+}
+
+#experimentControls{
+  position:absolute;
+  left:50%;
+  bottom:14px;
+  z-index:6;
+  width:min(920px,95%);
+  transform:translateX(-50%);
+  display:none;
+  grid-template-columns:minmax(340px,1fr) auto auto auto;
+  align-items:center;
+  gap:10px;
+  padding:12px 14px;
+  border:1px solid #bac5cb;
+  border-radius:15px;
+  background:rgba(255,255,255,.95);
+  box-shadow:0 5px 18px rgba(0,0,0,.18);
+  backdrop-filter:blur(5px);
+}
+
+#experimentControls.visible{
+  display:grid;
+}
+
+#sliderArea{
+  display:grid;
+  grid-template-columns:auto minmax(170px,1fr) auto auto;
+  align-items:center;
+  gap:10px;
+}
+
+#sliderArea label{
+  font-weight:750;
+  white-space:nowrap;
+}
+
+#lengthSlider{
+  width:100%;
+  accent-color:var(--vino);
+}
+
+#lengthValue{
+  min-width:74px;
+  text-align:center;
+  font-weight:800;
+  color:var(--vino);
+}
+
+#countdown{
+  min-width:72px;
+  padding:7px 9px;
+  border-radius:9px;
+  text-align:center;
+  background:#edf1f4;
+  font-weight:800;
+  color:#3e4c55;
+}
+
+.controlButton,
+#replay{
+  border:0;
+  border-radius:10px;
+  padding:10px 14px;
+  color:#fff;
+  font-size:14px;
+  font-weight:770;
+  cursor:pointer;
+  box-shadow:0 2px 6px rgba(0,0,0,.2);
+}
+
+#repeatInteractionButton{background:#7d4c2f}
+#stopButton{background:#626f78}
+#exciteButton{background:#386451}
+
+#experimentControls.final-mode #countdown{
+  display:none;
+}
+
+#experimentControls.final-mode #sliderArea{
+  grid-template-columns:auto minmax(170px,1fr) auto;
+}
+
+#replay{
+  position:absolute;
+  right:16px;
+  bottom:15px;
+  z-index:7;
+  display:none;
+  background:#7f2132;
+}
+
+.controlButton:hover,
+#replay:hover{
+  filter:brightness(1.08);
+}
+
+#boardFrame{
+  min-width:0;
+  min-height:0;
+  padding:12px;
+  background:#704e38;
+}
+
+#board{
+  width:100%;
+  height:100%;
+  overflow:auto;
+  padding:20px 19px 28px;
+  border:8px solid #aa7b52;
+  border-radius:5px;
+  color:var(--tiza);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 31px,
+      rgba(255,255,255,.033) 32px
+    ),
+    var(--pizarra);
+  box-shadow:inset 0 0 30px rgba(0,0,0,.42),0 3px 10px rgba(0,0,0,.22);
+}
+
+#board h2{
+  margin:0 0 14px;
+  text-align:center;
+  font:700 clamp(21px,2vw,30px)/1.2 "Comic Sans MS","Segoe Print",cursive;
+}
+
+#boardText{
+  font:500 clamp(16px,1.28vw,22px)/1.45 "Comic Sans MS","Segoe Print",cursive;
+}
+
+.note{
+  opacity:0;
+  transform:translateY(7px);
+  margin:0 0 12px;
+  transition:opacity .45s ease,transform .45s ease;
+}
+
+.note.show{
+  opacity:1;
+  transform:none;
+}
+
+.formula{
+  text-align:center;
+  font-size:1.2em;
+  margin:15px 0;
+}
+
+.yellow{
+  color:var(--amarillo);
+  font-weight:800;
+}
+
+.summary{
+  padding:10px 3px;
+  font-size:1.05em;
+  line-height:1.55;
+}
+
+#startOverlay{
+  position:fixed;
+  inset:0;
+  z-index:30;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  background:rgba(12,24,32,.8);
+  backdrop-filter:blur(7px);
+}
+
+#startCard{
+  width:min(570px,94vw);
+  padding:31px;
+  border-radius:22px;
+  background:#fff;
+  text-align:center;
+  box-shadow:0 18px 62px rgba(0,0,0,.38);
+}
+
+#startCard h2{
+  margin:0 0 10px;
+  font-size:32px;
+}
+
+#startCard p{
+  margin:8px 0 21px;
+  font-size:17px;
+  line-height:1.48;
+}
+
+#startButton{
+  border:0;
+  border-radius:11px;
+  padding:13px 23px;
+  background:#882438;
+  color:white;
+  font-size:18px;
+  font-weight:760;
+  cursor:pointer;
+}
+
+#audioMessage{
+  min-height:21px;
+  margin-top:12px;
+  color:#8b2432;
+  font-size:14px;
+}
+
+@media(max-width:900px){
+  header{
+    height:60px;
+    min-height:60px;
+  }
+
+  #main{
+    grid-template-columns:minmax(0,3fr) minmax(260px,1fr);
+  }
+
+  #experimentControls{
+    grid-template-columns:1fr 1fr;
+    gap:7px;
+  }
+
+  #sliderArea{
+    grid-column:1/-1;
+    grid-template-columns:auto minmax(110px,1fr) auto auto;
+  }
+
+  .controlButton{
+    padding:8px 10px;
+  }
+}
+</style>
+</head>
+
+<body>
+<header>
+  <h1>Resonancia mecánica</h1>
+</header>
+
+<main id="main">
+  <section id="simulation">
+    <canvas id="scene"></canvas>
+
+    <div id="status">Preparando la experiencia…</div>
+
+    <div id="experimentControls">
+      <div id="sliderArea">
+        <label for="lengthSlider">Longitud variable</label>
+        <input id="lengthSlider" type="range" min="0.25" max="1.00" step="0.01" value="0.65">
+        <span id="lengthValue">0,65 m</span>
+        <span id="countdown">1:00</span>
+      </div>
+      <button id="repeatInteractionButton" class="controlButton" style="display:none;">Repetir interacción</button>
+      <button id="stopButton" class="controlButton">Detener</button>
+      <button id="exciteButton" class="controlButton">Poner a oscilar</button>
+    </div>
+
+    <button id="replay">Repetir simulación</button>
+  </section>
+
+  <aside id="boardFrame">
+    <div id="board">
+      <div id="boardText"></div>
+    </div>
+  </aside>
+</main>
+
+<div id="startOverlay">
+  <div id="startCard">
+    <h2>Resonancia mecánica</h2>
+    <p>
+      Coloque este archivo y <strong>onda.mp3</strong> en la misma carpeta.
+      Pulse el botón para permitir que el navegador reproduzca la música y la locución.
+    </p>
+    <button id="startButton">Iniciar simulación</button>
+    <div id="audioMessage"></div>
+  </div>
+</div>
+
+<audio id="music" src="onda.mp3" preload="auto" loop></audio>
+
+<script>
+(() => {
+  "use strict";
+
+  /*
+    La escena se dibuja siempre en un sistema lógico fijo de 1200 × 720.
+    Después se escala de forma UNIFORME para ajustarse al espacio disponible.
+    Esto garantiza que:
+    1. Todo el montaje permanezca visible.
+    2. Las esferas nunca se deformen ni se vean alargadas.
+  */
+  const SCENE_WIDTH = 1200;
+  const SCENE_HEIGHT = 720;
+
+  const canvas = document.getElementById("scene");
+  const ctx = canvas.getContext("2d");
+  const simulation = document.getElementById("simulation");
+  const board = document.getElementById("board");
+  const boardText = document.getElementById("boardText");
+  const status = document.getElementById("status");
+  const experimentControls = document.getElementById("experimentControls");
+  const lengthSlider = document.getElementById("lengthSlider");
+  const lengthValue = document.getElementById("lengthValue");
+  const countdown = document.getElementById("countdown");
+  const repeatInteractionButton = document.getElementById("repeatInteractionButton");
+  const stopButton = document.getElementById("stopButton");
+  const exciteButton = document.getElementById("exciteButton");
+  const replay = document.getElementById("replay");
+  const startOverlay = document.getElementById("startOverlay");
+  const startButton = document.getElementById("startButton");
+  const audioMessage = document.getElementById("audioMessage");
+  const music = document.getElementById("music");
+
+  const G = Math.PI * Math.PI;
+  const fixedLengths = [0.25, 0.50, 0.75, 1.00];
+
+  let canvasWidth = 1;
+  let canvasHeight = 1;
+  let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+  let scale = 1;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  let sequenceRunning = false;
+  let animationTime = 0;
+  let lastFrame = performance.now();
+  let variableLength = 0.65;
+  let motionMode = "still";
+  let modeStart = performance.now();
+  let musicFadeTimer = null;
+  let experimentActive = false;
+  let experimentOscillating = false;
+  let experimentTimerId = null;
+
+  const reveal = {
+    ground:0,
+    leftStand:0,
+    rightStand:0,
+    string:0,
+    pendulums:[0,0,0,0,0]
+  };
+
+  /*
+    Orden físico desde el péndulo variable, ahora ubicado a la derecha:
+    índice 0 (0,25 m), índice 1 (0,50 m), índice 2 (0,75 m), índice 3 (1,00 m).
+    Cada péndulo comienza a responder 0,5 s después del anterior.
+  */
+  const propagationDelay = {
+    0:0.80,
+    1:1.30,
+    2:1.80,
+    3:2.30
+  };
+
+  const phases = [0.40,1.37,2.28,3.19];
+
+  const wait = ms => new Promise(resolve => setTimeout(resolve,ms));
+
+  function resizeCanvas(){
+    const rect = simulation.getBoundingClientRect();
+    canvasWidth = Math.max(1,rect.width);
+    canvasHeight = Math.max(1,rect.height);
+
+    canvas.width = Math.round(canvasWidth*dpr);
+    canvas.height = Math.round(canvasHeight*dpr);
+
+    scale = Math.min(
+      canvasWidth/SCENE_WIDTH,
+      canvasHeight/SCENE_HEIGHT
+    );
+
+    offsetX = (canvasWidth-SCENE_WIDTH*scale)/2;
+    offsetY = (canvasHeight-SCENE_HEIGHT*scale)/2;
+  }
+
+  window.addEventListener("resize",resizeCanvas);
+  resizeCanvas();
+
+  function beginLogicalDrawing(){
+    ctx.setTransform(
+      dpr*scale,0,
+      0,dpr*scale,
+      dpr*offsetX,dpr*offsetY
+    );
+  }
+
+  function ease(t){
+    t=Math.max(0,Math.min(1,t));
+    return t<.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
+  }
+
+  function animateProperty(object,key,to,duration){
+    const from=object[key];
+    return new Promise(resolve=>{
+      const start=performance.now();
+
+      function frame(now){
+        const p=Math.min(1,(now-start)/duration);
+        object[key]=from+(to-from)*ease(p);
+
+        if(p<1){
+          requestAnimationFrame(frame);
+        }else{
+          resolve();
+        }
+      }
+
+      requestAnimationFrame(frame);
+    });
+  }
+
+  function animateArray(array,index,to,duration){
+    const from=array[index];
+
+    return new Promise(resolve=>{
+      const start=performance.now();
+
+      function frame(now){
+        const p=Math.min(1,(now-start)/duration);
+        array[index]=from+(to-from)*ease(p);
+
+        if(p<1){
+          requestAnimationFrame(frame);
+        }else{
+          resolve();
+        }
+      }
+
+      requestAnimationFrame(frame);
+    });
+  }
+
+  function clearBoard(){
+    boardText.innerHTML="";
+  }
+
+  function writeNote(html,className=""){
+    const paragraph=document.createElement("p");
+    paragraph.className=("note "+className).trim();
+    paragraph.innerHTML=html;
+    boardText.appendChild(paragraph);
+
+    requestAnimationFrame(()=>{
+      paragraph.classList.add("show");
+    });
+
+    board.scrollTop=board.scrollHeight;
+  }
+
+  function chooseVoice(){
+    const voices=speechSynthesis.getVoices();
+    const spanish=voices.filter(voice=>/^es/i.test(voice.lang));
+    const masculine=/pablo|álvaro|alvaro|jorge|diego|carlos|miguel|andrés|andres|male|mascul/i;
+
+    return spanish.find(voice=>masculine.test(voice.name))
+      || spanish[0]
+      || voices[0]
+      || null;
+  }
+
+  function speak(text,options={}){
+    return new Promise(resolve=>{
+      const utterance=new SpeechSynthesisUtterance(text);
+      const voice=chooseVoice();
+
+      if(voice){
+        utterance.voice=voice;
+      }
+
+      utterance.lang="es-CO";
+      utterance.rate=options.rate ?? 0.91;
+      utterance.pitch=options.pitch ?? 0.86;
+      utterance.volume=options.volume ?? 1;
+      utterance.onend=resolve;
+      utterance.onerror=resolve;
+
+      speechSynthesis.speak(utterance);
+    });
+  }
+
+  function stopSpeech(){
+    speechSynthesis.cancel();
+  }
+
+  function fadeMusic(target,duration){
+    clearInterval(musicFadeTimer);
+
+    const initial=music.volume;
+    const start=performance.now();
+
+    musicFadeTimer=setInterval(()=>{
+      const p=Math.min(1,(performance.now()-start)/duration);
+      music.volume=initial+(target-initial)*p;
+
+      if(p>=1){
+        clearInterval(musicFadeTimer);
+      }
+    },35);
+  }
+
+  function roundedRect(x,y,width,height,radius){
+    const r=Math.min(radius,width/2,height/2);
+
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+width,y,x+width,y+height,r);
+    ctx.arcTo(x+width,y+height,x,y+height,r);
+    ctx.arcTo(x,y+height,x,y,r);
+    ctx.arcTo(x,y,x+width,y,r);
+    ctx.closePath();
+  }
+
+  function sceneLayout(){
+    return{
+      leftX:95,
+      rightX:1105,
+      topY:80,
+      supportY:112,
+      groundY:640
+    };
+  }
+
+  function pendulumAnchors(layout){
+    const left=layout.leftX+130;
+    const right=layout.rightX-130;
+    const gap=(right-left)/4;
+
+    /*
+      Distribución de izquierda a derecha:
+      1,00 m; 0,75 m; 0,50 m; 0,25 m; péndulo variable.
+
+      El péndulo fijo de 1,00 m queda en el extremo izquierdo y el variable
+      en el extremo derecho. Así, cuando ambos tienen longitud de 1,00 m,
+      sus trayectorias quedan ampliamente separadas y no se superponen.
+    */
+    return[
+      left+3*gap, // índice 0: 0,25 m
+      left+2*gap, // índice 1: 0,50 m
+      left+gap,   // índice 2: 0,75 m
+      left,       // índice 3: 1,00 m
+      right       // índice 4: longitud variable
+    ];
+  }
+
+  function lengthToPixels(length){
+    return length*400;
+  }
+
+  function drawGround(layout){
+    if(reveal.ground<=0){
+      return;
+    }
+
+    const x0=48;
+    const x1=1152;
+    const end=x0+(x1-x0)*reveal.ground;
+
+    ctx.save();
+    ctx.globalAlpha=reveal.ground;
+    ctx.strokeStyle="#414a50";
+    ctx.lineWidth=3;
+
+    ctx.beginPath();
+    ctx.moveTo(x0,layout.groundY);
+    ctx.lineTo(end,layout.groundY);
+    ctx.stroke();
+
+    ctx.lineWidth=1.4;
+
+    for(let x=x0+12;x<end;x+=20){
+      ctx.beginPath();
+      ctx.moveTo(x,layout.groundY+2);
+      ctx.lineTo(x-11,layout.groundY+14);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  function drawStand(x,progress,layout){
+    if(progress<=0){
+      return;
+    }
+
+    const rodHeight=(layout.groundY-layout.topY)*progress;
+    const rodY=layout.groundY-rodHeight;
+    const baseWidth=92;
+
+    ctx.save();
+    ctx.globalAlpha=progress;
+
+    const gradient=ctx.createLinearGradient(x-7,0,x+7,0);
+    gradient.addColorStop(0,"#30393f");
+    gradient.addColorStop(.35,"#afb8be");
+    gradient.addColorStop(.64,"#68747c");
+    gradient.addColorStop(1,"#273037");
+
+    ctx.fillStyle=gradient;
+    roundedRect(x-6,rodY,12,rodHeight,5);
+    ctx.fill();
+
+    ctx.fillStyle="#59656d";
+    roundedRect(x-baseWidth/2,layout.groundY-7,baseWidth,14,4);
+    ctx.fill();
+
+    ctx.strokeStyle="#303940";
+    ctx.lineWidth=2;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawSupportString(layout){
+    if(reveal.string<=0){
+      return;
+    }
+
+    ctx.save();
+    ctx.strokeStyle="#31383d";
+    ctx.lineWidth=2.3;
+
+    ctx.beginPath();
+    ctx.moveTo(layout.leftX,layout.supportY);
+    ctx.lineTo(
+      layout.leftX+(layout.rightX-layout.leftX)*reveal.string,
+      layout.supportY
+    );
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function metallicSphere(x,y,radius,resonant=false){
+    ctx.save();
+
+    if(resonant){
+      ctx.shadowColor="rgba(255,201,61,.95)";
+      ctx.shadowBlur=25;
+      ctx.strokeStyle="#ffd34e";
+      ctx.lineWidth=4;
+
+      ctx.beginPath();
+      ctx.arc(x,y,radius+8,0,Math.PI*2);
+      ctx.stroke();
+    }
+
+    const gradient=ctx.createRadialGradient(
+      x-radius*.36,
+      y-radius*.42,
+      radius*.08,
+      x,
+      y,
+      radius
+    );
+
+    gradient.addColorStop(0,"#ffffff");
+    gradient.addColorStop(.26,"#c9d0d4");
+    gradient.addColorStop(.62,"#7d8991");
+    gradient.addColorStop(1,"#30383e");
+
+    ctx.fillStyle=gradient;
+    ctx.beginPath();
+    ctx.arc(x,y,radius,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.strokeStyle="#273036";
+    ctx.lineWidth=1.5;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function naturalOmega(length){
+    return Math.sqrt(G/length);
+  }
+
+  function modeElapsed(){
+    return (performance.now()-modeStart)/1000;
+  }
+
+  function fixedPendulumLocalTime(index){
+    return modeElapsed()-propagationDelay[index];
+  }
+
+  function smallIrregularMotion(index,localTime,driverOmega,ownOmega){
+    return 0.025*Math.sin(ownOmega*localTime+phases[index])
+      +0.011*Math.sin(driverOmega*localTime+index*.77);
+  }
+
+  function resonantMotion(index,localTime,driverOmega,ownOmega){
+    /*
+      El péndulo resonante no crece inmediatamente:
+      - Primero espera a que llegue la perturbación.
+      - Durante 3 s oscila poco y de manera irregular.
+      - Después la amplitud crece gradualmente.
+    */
+    const irregularDuration=3.0;
+
+    if(localTime<irregularDuration){
+      return smallIrregularMotion(index,localTime,driverOmega,ownOmega);
+    }
+
+    const resonanceTime=localTime-irregularDuration;
+    const amplitude=0.020+0.145*(1-Math.exp(-0.32*resonanceTime));
+
+    return amplitude*Math.sin(driverOmega*localTime-.15)
+      +0.010*Math.sin(ownOmega*localTime+phases[index]);
+  }
+
+  function manualResonantIndex(){
+    let closestIndex=0;
+    let smallestDifference=Infinity;
+
+    fixedLengths.forEach((length,index)=>{
+      const difference=Math.abs(length-variableLength);
+
+      if(difference<smallestDifference){
+        smallestDifference=difference;
+        closestIndex=index;
+      }
+    });
+
+    return smallestDifference<=0.025 ? closestIndex : -1;
+  }
+
+  function angleFor(index,time){
+    if(motionMode==="still"){
+      return 0;
+    }
+
+    const driverOmega=naturalOmega(variableLength);
+
+    if(index===4){
+      if(motionMode==="manual" && !experimentOscillating){
+        return 0;
+      }
+
+      return 0.17*Math.sin(driverOmega*time);
+    }
+
+    const localTime=fixedPendulumLocalTime(index);
+
+    /*
+      Los péndulos fijos permanecen completamente quietos hasta que
+      les corresponde comenzar a responder.
+    */
+    if(localTime<=0){
+      return 0;
+    }
+
+    const ownOmega=naturalOmega(fixedLengths[index]);
+
+    if(motionMode==="irregular"){
+      return smallIrregularMotion(index,localTime,driverOmega,ownOmega);
+    }
+
+    if(motionMode==="resonance50"){
+      if(index===1){
+        return resonantMotion(index,localTime,driverOmega,ownOmega);
+      }
+
+      return smallIrregularMotion(index,localTime,driverOmega,ownOmega);
+    }
+
+    if(motionMode==="resonance100"){
+      if(index===3){
+        return resonantMotion(index,localTime,driverOmega,ownOmega);
+      }
+
+      return smallIrregularMotion(index,localTime,driverOmega,ownOmega);
+    }
+
+    if(motionMode==="manual"){
+      if(!experimentOscillating){
+        return 0;
+      }
+
+      const resonantIndex=manualResonantIndex();
+
+      if(index===resonantIndex){
+        return resonantMotion(index,localTime,driverOmega,ownOmega);
+      }
+
+      return smallIrregularMotion(index,localTime,driverOmega,ownOmega);
+    }
+
+    return 0;
+  }
+
+  function isResonant(index){
+    const localTime=fixedPendulumLocalTime(index);
+
+    if(localTime<3.0){
+      return false;
+    }
+
+    if(motionMode==="resonance50"){
+      return index===1;
+    }
+
+    if(motionMode==="resonance100"){
+      return index===3;
+    }
+
+    if(motionMode==="manual"){
+      return experimentOscillating && index===manualResonantIndex();
+    }
+
+    return false;
+  }
+
+  function drawPendulum(index,layout,time){
+    const progress=reveal.pendulums[index];
+
+    if(progress<=0){
+      return;
+    }
+
+    const anchors=pendulumAnchors(layout);
+    const originX=anchors[index];
+    const originY=layout.supportY;
+    const length=index<4 ? fixedLengths[index] : variableLength;
+    const pixelLength=lengthToPixels(length)*progress;
+    const theta=angleFor(index,time);
+
+    const sphereX=originX+Math.sin(theta)*pixelLength;
+    const sphereY=originY+Math.cos(theta)*pixelLength;
+
+    /*
+      Radio lógico fijo. Como toda la escena se escala de forma uniforme,
+      la esfera se conserva perfectamente circular.
+    */
+    const radius=13;
+
+    ctx.save();
+    ctx.globalAlpha=progress;
+    ctx.strokeStyle=index===4 ? "#8e2639" : "#323a40";
+    ctx.lineWidth=index===4 ? 2.4 : 1.9;
+
+    ctx.beginPath();
+    ctx.moveTo(originX,originY);
+    ctx.lineTo(sphereX,sphereY);
+    ctx.stroke();
+
+    ctx.fillStyle="#343c42";
+    ctx.beginPath();
+    ctx.arc(originX,originY,3.2,0,Math.PI*2);
+    ctx.fill();
+
+    metallicSphere(sphereX,sphereY,radius,isResonant(index));
+
+    ctx.textAlign="center";
+    ctx.textBaseline="top";
+    ctx.font="650 17px Segoe UI";
+    ctx.fillStyle=index===4 ? "#8d2639" : "#26323a";
+
+    const label=index===4
+      ? `Variable: ${length.toFixed(2).replace(".",",")} m`
+      : `${length.toFixed(2).replace(".",",")} m`;
+
+    ctx.fillText(label,sphereX,sphereY+radius+8);
+
+    ctx.restore();
+  }
+
+  function drawModeLabel(){
+    if(motionMode==="still"){
+      return;
+    }
+
+    let firstLine="";
+    let secondLine="";
+    let accent="#4c5c65";
+
+    if(motionMode==="irregular"){
+      firstLine="Longitud variable: 0,65 m";
+      secondLine="La perturbación llega de forma progresiva";
+    }
+
+    if(motionMode==="resonance50"){
+      firstLine="Longitud variable: 0,50 m";
+      secondLine="Resonancia con el péndulo de 0,50 m";
+      accent="#8d2639";
+    }
+
+    if(motionMode==="resonance100"){
+      firstLine="Longitud variable: 1,00 m";
+      secondLine="Resonancia con el péndulo de 1,00 m";
+      accent="#8d2639";
+    }
+
+    if(motionMode==="manual"){
+      firstLine=`Longitud variable: ${variableLength.toFixed(2).replace(".",",")} m`;
+
+      const resonantIndex=manualResonantIndex();
+
+      secondLine=resonantIndex>=0
+        ? `Puede resonar con el péndulo de ${fixedLengths[resonantIndex].toFixed(2).replace(".",",")} m`
+        : "No coincide con ninguna longitud fija";
+
+      accent=resonantIndex>=0 ? "#8d2639" : "#4c5c65";
+    }
+
+    const width=430;
+    const height=68;
+    const x=20;
+    const y=55;
+
+    ctx.save();
+    ctx.fillStyle="rgba(255,255,255,.91)";
+    ctx.strokeStyle="#aeb9c0";
+    ctx.lineWidth=1;
+
+    roundedRect(x,y,width,height,12);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.textAlign="left";
+    ctx.textBaseline="top";
+    ctx.fillStyle="#26343c";
+    ctx.font="750 18px Segoe UI";
+    ctx.fillText(firstLine,x+15,y+11);
+
+    ctx.font="650 15px Segoe UI";
+    ctx.fillStyle=accent;
+    ctx.fillText(secondLine,x+15,y+39);
+
+    ctx.restore();
+  }
+
+  function render(now){
+    const delta=Math.min(.04,(now-lastFrame)/1000);
+    lastFrame=now;
+    animationTime+=delta;
+
+    /*
+      Primero se limpia todo el lienzo en coordenadas reales.
+    */
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,canvasWidth,canvasHeight);
+
+    /*
+      Después se aplica una sola escala uniforme a toda la escena.
+    */
+    beginLogicalDrawing();
+
+    const layout=sceneLayout();
+
+    drawGround(layout);
+    drawStand(layout.leftX,reveal.leftStand,layout);
+    drawStand(layout.rightX,reveal.rightStand,layout);
+    drawSupportString(layout);
+
+    for(let index=0;index<5;index++){
+      drawPendulum(index,layout,animationTime);
+    }
+
+    // drawModeLabel();
+
+    requestAnimationFrame(render);
+  }
+
+  requestAnimationFrame(render);
+
+  function setMode(mode,length=variableLength){
+    variableLength=length;
+    motionMode=mode;
+    modeStart=performance.now();
+    animationTime=0;
+  }
+
+  async function stopAllPendulumsBeforeTest(length){
+    /*
+      Antes de iniciar cualquier nueva prueba se detienen todos los péndulos.
+      Luego se espera brevemente para que el estado de reposo sea visible.
+    */
+    experimentOscillating=false;
+    setMode("still",length);
+    status.textContent="Deteniendo todos los péndulos";
+    await wait(1000);
+  }
+
+  async function introductoryMusic(){
+    music.currentTime=0;
+    music.volume=1;
+
+    try{
+      await music.play();
+    }catch(error){
+      audioMessage.textContent=
+        "No fue posible reproducir onda.mp3. Revise que esté en la misma carpeta.";
+    }
+
+    await wait(3000);
+    fadeMusic(.10,800);
+    await wait(1000);
+  }
+
+  async function buildMontage(){
+    status.textContent="Construyendo el montaje";
+    writeNote("<span class='yellow'>Montaje experimental</span>");
+
+    await Promise.all([
+      speak(
+        "Vamos a mostrar una simulación que puede realizarse fácilmente como un experimento real. Aquí se tienen dos soportes."
+      ),
+      (async()=>{
+        await animateProperty(reveal,"ground",1,850);
+
+        await Promise.all([
+          animateProperty(reveal,"leftStand",1,1350),
+          animateProperty(reveal,"rightStand",1,1350)
+        ]);
+      })()
+    ]);
+
+    writeNote("Dos soportes universales sobre una superficie horizontal.");
+
+    await Promise.all([
+      speak("Y un hilo tensado entre ellos."),
+      animateProperty(reveal,"string",1,1200)
+    ]);
+
+    writeNote("Un hilo se tensa entre dos soportes.");
+
+    await Promise.all([
+      speak("Se coloca un primer péndulo de veinticinco centímetros."),
+      animateArray(reveal.pendulums,0,1,850)
+    ]);
+
+
+    await Promise.all([
+      speak(
+        "Otro de cincuenta centímetros, separados suficientemente como para que no choquen cuando oscilen."
+      ),
+      animateArray(reveal.pendulums,1,1,900)
+    ]);
+
+
+    await Promise.all([
+      speak("Otro de setenta y cinco centímetros."),
+      animateArray(reveal.pendulums,2,1,850)
+    ]);
+
+
+    await Promise.all([
+      speak("Y otro de un metro."),
+      animateArray(reveal.pendulums,3,1,850)
+    ]);
+
+
+    await Promise.all([
+      speak(
+        "Y por último, vamos a colocar otro péndulo, al cual se le irá cambiando su longitud."
+      ),
+      animateArray(reveal.pendulums,4,1,1000)
+    ]);
+
+    writeNote("L₅ = longitud variable.");
+  }
+
+  async function explainFrequencies(){
+    status.textContent="Relacionando longitud y frecuencia";
+    writeNote("<span class='yellow'>Longitud y frecuencia natural</span>");
+
+    await speak(
+      "Cada longitud, como es conocido, determina el período y la frecuencia de oscilación de cada péndulo."
+    );
+
+    await speak(
+      "Así, por ejemplo, el péndulo que tiene de longitud un metro, tendrá una frecuencia angular de pi radianes por segundo."
+    );
+
+    writeNote("Para L = 1,00 m: &nbsp;ω = π rad/s");
+
+    await speak(
+      "Porque la frecuencia angular se calcula como la raíz de la aceleración de la gravedad entre la longitud del péndulo, como se muestra en la pizarra."
+    );
+
+    writeNote("ω = √(g/L)","formula");
+    writeNote("Tomando g ≈ π² m/s².");
+
+    await speak(
+      "El péndulo de cincuenta centímetros oscilará con una frecuencia angular de raíz de dos por pi radianes por segundo."
+    );
+
+    writeNote("Para L = 0,50 m: &nbsp;ω = √2·π rad/s");
+
+    await speak(
+      "Y así, cada péndulo tiene una frecuencia en correspondencia con su longitud, porque están oscilando en el mismo punto de la Tierra."
+    );
+
+    writeNote(
+      "0,25 m → 2π rad/s<br>"+
+      "0,50 m → √2·π rad/s<br>"+
+      "0,75 m → 2π/√3 rad/s<br>"+
+      "1,00 m → π rad/s"
+    );
+  }
+
+  async function irregularMotion(){
+    await stopAllPendulumsBeforeTest(0.65);
+
+    status.textContent="Transmitiendo vibraciones por el hilo";
+    setMode("irregular",0.65);
+
+    writeNote("<span class='yellow'>Transmisión de vibraciones</span>");
+
+    await speak(
+      "Cuando el péndulo de longitud variable se pone a oscilar, su oscilación produce vibraciones en la cuerda, que se transmiten a cada uno de los demás péndulos."
+    );
+
+    writeNote(
+      "La perturbación llega progresivamente a los péndulos a través del hilo."
+    );
+
+    await speak(
+      "Y como puede observarse, cada uno de los otros cuatro realiza oscilaciones desordenadas."
+    );
+
+    writeNote(
+      "Sin coincidencia de frecuencias: respuesta pequeña y desordenada."
+    );
+  }
+
+  async function resonanceAtHalfMeter(){
+    await stopAllPendulumsBeforeTest(0.50);
+
+    status.textContent="Probando una longitud de 0,50 m";
+    setMode("resonance50",0.50);
+
+    writeNote("<span class='yellow'>Coincidencia con L = 0,50 m</span>");
+
+    await speak(
+      "Pero, si la longitud de nuestro péndulo se hace coincidir con una de las longitudes de los otros péndulos, por ejemplo que sea de cincuenta centímetros."
+    );
+
+    await speak(
+      "Otra vez todos los péndulos oscilan un poco, pero desordenadamente, mientras que el que tiene una longitud igual al que se puso a oscilar inicialmente, comienza a oscilar con una amplitud semejante a la que tiene el péndulo de longitud variable."
+    );
+
+    writeNote("L₅ = L₂ = 0,50 m");
+    writeNote(
+      "Primero responde débilmente; después aumenta gradualmente su amplitud."
+    );
+  }
+
+  async function resonanceAtOneMeter(){
+    await speak("Detengamos todos los péndulos.");
+    await stopAllPendulumsBeforeTest(1.00);
+
+    status.textContent="Probando una longitud de 1,00 m";
+    setMode("resonance100",1.00);
+
+    writeNote("<span class='yellow'>Coincidencia con L = 1,00 m</span>");
+
+    await speak(
+      "Y ahora pongamos a oscilar al péndulo de longitud variable, pero con longitud de un metro."
+    );
+
+    await speak(
+      "Al rato de ponerlo a oscilar, se observa que el péndulo que tiene una longitud de un metro, comienza a oscilar con una amplitud igual a nuestro péndulo."
+    );
+
+    writeNote("L₅ = L₄ = 1,00 m");
+    writeNote(
+      "La amplitud crece después de que la energía se transmite durante cierto tiempo."
+    );
+  }
+
+  function updateLengthDisplay(){
+    lengthValue.textContent=
+      variableLength.toFixed(2).replace(".",",")+" m";
+  }
+
+  async function startManualOscillation(){
+    await stopAllPendulumsBeforeTest(variableLength);
+
+    experimentOscillating=true;
+    setMode("manual",variableLength);
+
+    const resonantIndex=manualResonantIndex();
+
+    status.textContent=resonantIndex>=0
+      ? `Experimentando: posible resonancia con ${fixedLengths[resonantIndex].toFixed(2).replace(".",",")} m`
+      : "Experimentando fuera de resonancia";
+  }
+
+  function stopManualOscillation(){
+    experimentOscillating=false;
+    setMode("still",variableLength);
+    status.textContent="Sistema detenido: cambie la longitud o vuelva a ponerlo a oscilar";
+  }
+
+  async function repeatCurrentInteraction(){
+
+    if(sequenceRunning){
+      return;
+    }
+
+    if(music){
+      music.pause();
+      music.currentTime=0;
+    }
+
+    stopSpeech();
+
+    experimentOscillating=false;
+    experimentActive=false;
+
+    if(experimentTimerId){
+      clearInterval(experimentTimerId);
+      experimentTimerId=null;
+    }
+
+    await runSequence();
+  }
+
+  lengthSlider.addEventListener("input",()=>{
+    variableLength=Number(lengthSlider.value);
+    updateLengthDisplay();
+
+    /*
+      Al cambiar la longitud se detiene el sistema. El usuario debe volver
+      a pulsar "Poner a oscilar" para comenzar una nueva prueba.
+    */
+    experimentOscillating=false;
+    setMode("still",variableLength);
+    status.textContent="Longitud ajustada: sistema detenido";
+  });
+
+  repeatInteractionButton.addEventListener("click",async()=>{
+    await repeatCurrentInteraction();
+  });
+
+  stopButton.addEventListener("click",stopManualOscillation);
+
+  exciteButton.addEventListener("click",async()=>{
+    await startManualOscillation();
+  });
+
+  function formatCountdown(seconds){
+    const minutes=Math.floor(seconds/60);
+    const remainder=seconds%60;
+    return `${minutes}:${String(remainder).padStart(2,"0")}`;
+  }
+
+  async function interactiveMinute(){
+    experimentActive=true;
+    experimentOscillating=false;
+    variableLength=0.65;
+    lengthSlider.value=variableLength;
+    updateLengthDisplay();
+    setMode("still",variableLength);
+
+    experimentControls.classList.remove("final-mode");
+    experimentControls.classList.add("visible");
+    countdown.style.display="";
+    status.textContent="Experimente durante un minuto: ajuste y luego ponga a oscilar";
+
+    clearBoard();
+    writeNote("<span class='yellow'>Exploración libre</span>");
+    writeNote(
+      "Cambie la longitud del quinto péndulo y observe qué péndulo aumenta más su amplitud."
+    );
+    writeNote(
+      "Pruebe especialmente 0,25 m; 0,50 m; 0,75 m y 1,00 m."
+    );
+
+    let remaining=60;
+    countdown.textContent=formatCountdown(remaining);
+
+    await new Promise(resolve=>{
+      experimentTimerId=setInterval(()=>{
+        remaining-=1;
+        countdown.textContent=formatCountdown(Math.max(0,remaining));
+
+        if(remaining<=0){
+          clearInterval(experimentTimerId);
+          experimentTimerId=null;
+          resolve();
+        }
+      },1000);
+    });
+
+    experimentActive=false;
+    experimentOscillating=false;
+    experimentControls.classList.remove("visible");
+    setMode("still",variableLength);
+  }
+
+  async function askQuestionBeforeSummary(){
+    clearBoard();
+    status.textContent="Pregunta para analizar";
+
+    const question=
+      "¿Qué conclusiones se pueden sacar de este experimento?";
+
+    writeNote(
+      "<span class='yellow'>"+question+"</span>",
+      "summary"
+    );
+
+    await speak(question);
+
+    /*
+      Se deja un tiempo para que los estudiantes formulen sus propias
+      conclusiones antes de mostrar la explicación final.
+    */
+    await wait(6000);
+  }
+
+  async function showFinalSummary(){
+    clearBoard();
+    status.textContent="Resumen";
+
+    const summaryText=
+      "Cuando un sistema oscilante, de alguna manera pone a oscilar a otro semejante, "+
+      "pero lo hace con la misma frecuencia propia o una muy parecida a la que tiene el receptor, "+
+      "la amplitud del sistema que recibe la señal de oscilar aumenta. "+
+      "A este fenómeno se le denomina resonancia.";
+
+    writeNote("<span class='yellow'>Resumen</span>");
+    writeNote(summaryText,"summary");
+
+    await speak(summaryText);
+  }
+
+  function enablePermanentInteraction(){
+
+    experimentActive = true;
+    experimentOscillating = false;
+
+    setMode("still", variableLength);
+
+    experimentControls.classList.add("visible");
+    experimentControls.classList.add("final-mode");
+
+    countdown.style.display = "none";
+
+    repeatInteractionButton.style.display = "";
+    stopButton.style.display = "";
+    exciteButton.style.display = "";
+
+    status.textContent =
+      "Interacción libre: puede seguir experimentando.";
+  }
+
+  async function runSequence(){
+    if(sequenceRunning){
+      return;
+    }
+
+    sequenceRunning=true;
+    replay.style.display="none";
+    experimentControls.classList.remove("visible");
+    experimentControls.classList.remove("final-mode");
+    countdown.style.display="";
+
+    if(experimentTimerId){
+      clearInterval(experimentTimerId);
+      experimentTimerId=null;
+    }
+
+    stopSpeech();
+    clearBoard();
+
+    Object.assign(reveal,{
+      ground:0,
+      leftStand:0,
+      rightStand:0,
+      string:0
+    });
+
+    reveal.pendulums.fill(0);
+
+    setMode("still",0.65);
+    status.textContent="Presentación inicial";
+
+    await introductoryMusic();
+    await buildMontage();
+
+    status.textContent="Observemos el montaje";
+    await wait(3000);
+
+    await explainFrequencies();
+
+    status.textContent="Comparando las frecuencias naturales";
+    await wait(3000);
+
+    await irregularMotion();
+    await wait(3000);
+
+    await resonanceAtHalfMeter();
+    await wait(3000);
+
+    await resonanceAtOneMeter();
+    await wait(1500);
+
+    /*
+      La pregunta final se aplaza hasta después del minuto de experimentación.
+    */
+    await interactiveMinute();
+    await askQuestionBeforeSummary();
+    await showFinalSummary();
+    enablePermanentInteraction();
+
+    /*
+      No se muestra el botón de repetir toda la simulación:
+      la etapa final queda abierta para experimentar indefinidamente.
+    */
+    replay.style.display="none";
+    sequenceRunning=false;
+  }
+
+  startButton.addEventListener("click",async()=>{
+    startOverlay.style.display="none";
+    await runSequence();
+  });
+
+  replay.addEventListener("click",async()=>{
+    music.pause();
+    music.currentTime=0;
+    await runSequence();
+  });
+
+  speechSynthesis.onvoiceschanged=chooseVoice;
+})();
+</script>
+</body>
+</html>
